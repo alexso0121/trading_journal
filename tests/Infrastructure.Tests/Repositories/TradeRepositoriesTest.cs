@@ -9,12 +9,12 @@ using Xunit;
 
 namespace trading_journel_app.tests.Infrastructure.Tests.Repositories;
 
-public class TradeRepositoriesTest:IClassFixture<PostgreSqlFixture>
+public class TradeRepositoriesTest : IClassFixture<PostgreSqlFixture>
 {
     private readonly PostgreSqlFixture _fixture;
     private readonly TradingJournalDbContext _dbContext;
     private readonly TradeRepository _tradeRepository;
-    
+
     public TradeRepositoriesTest(PostgreSqlFixture fixture)
     {
         _fixture = fixture;
@@ -22,25 +22,31 @@ public class TradeRepositoriesTest:IClassFixture<PostgreSqlFixture>
             .UseNpgsql(_fixture.GetConnectionString())
             .Options;
         _dbContext = new TradingJournalDbContext(options);
+        _dbContext.Database.EnsureCreated();
         _tradeRepository = new TradeRepository(_dbContext);
     }
-    
-    
+
+
     [Fact]
     public async Task AddTrade_ShouldAddTradeToDatabase()
     {
         // Arrange
+        var userId = Guid.NewGuid();
+        var strategy = Strategy.Create(userId, "Swing breakout", "Test strategy");
+        _dbContext.Strategies.Add(strategy);
+        await _dbContext.SaveChangesAsync();
+
         var trade = Trade.Create(
-             Guid.NewGuid(),
-                Guid.NewGuid(),
+                 strategy.Id,
+                     userId,
              "AAPL",
              "NAS",
              TradeDirection.Long,
              13,
              3,
              new DateTime(2024, 6, 1, 14, 30, 0, DateTimeKind.Utc)
-             
-      
+
+
         );
 
         // Act
