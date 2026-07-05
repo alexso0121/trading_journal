@@ -1,0 +1,51 @@
+# Build outputs
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+publish/
+
+# User-specific files
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+
+# IDE settings
+.vs/
+.vscode/
+.idea/
+
+# Logs and temp files
+*.log
+*.tmp
+*.temp
+
+# Test results and coverage
+TestResults/
+*.trx
+coverage/
+coverage-*/
+*.coverage
+*.coveragexml
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# Frontend (Vite/Node)
+src/Web/node_modules/
+src/Web/dist/
+src/Web/.vite/
+src/Web/.env
+src/Web/.env.*
+!src/Web/.env.example
+
+# Local/development secrets
+src/firebase-credential-dev.json
+src/appsettings.Development.json
+
+
+

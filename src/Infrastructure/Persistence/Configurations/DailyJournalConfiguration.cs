@@ -1,0 +1,37 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using trading_journel_app.Domain.Entities;
+
+namespace trading_journel_app.Infrastructure.Persistence.Configurations;
+
+public sealed class DailyJournalConfiguration : IEntityTypeConfiguration<DailyJournal>
+{
+    public void Configure(EntityTypeBuilder<DailyJournal> builder)
+    {
+        builder.ToTable("daily_journals");
+
+        builder.HasKey(j => j.Id);
+        builder.Property(j => j.Id).HasColumnName("id");
+
+        builder.Property(j => j.UserId)
+            .HasColumnName("user_id")
+            .IsRequired();
+
+        builder.Property(j => j.JournalDateUtc)
+            .HasColumnName("journal_date_utc")
+            .IsRequired();
+
+        builder.Property(j => j.Note)
+            .HasColumnName("note")
+            .HasMaxLength(2000)
+            .IsRequired();
+
+        builder.Property(j => j.CreatedAtUtc)
+            .HasColumnName("created_at_utc")
+            .IsRequired();
+
+        builder.Property(j => j.UpdatedAtUtc)
+            .HasColumnName("updated_at_utc")
+            .IsRequired();
+    }
+}

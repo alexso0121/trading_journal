@@ -1,0 +1,6 @@
+@trading_journel_app_HostAddress = http://localhost:5116
+
+GET {{trading_journel_app_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
