@@ -1,58 +1,115 @@
-# trading_journel_app
+# Trading Journal App
 
-ASP.NET Core Web API for a trading journal app with PostgreSQL, EF Core, Swagger, and Firebase Admin authentication.
+Backend API for a trading journal system where authenticated users can manage strategies, trades, and daily notes with auditability and concurrency safety.
+
+
+**What problems it solves:**
+1. Keeps each user's trading activity organized (strategies, trades, daily journals).
+2. Prevents silent overwrite issues during concurrent updates (`Version` + `lastKnownVersion` checks).
+3. Improves traceability with automatic audit logs on create/update/delete operations.
+
+## Architecture overview
+
+The codebase follows a clean/layered style:
+
+- **Api layer (`src\Api`)**: HTTP controllers, request/response wiring, auth gates.
+- **Application layer (`src\Application`)**: use cases, validators, orchestration, repository contracts.
+- **Domain layer (`src\Domain`)**: core entities and domain invariants.
+- **Infrastructure layer (`src\Infrastructure`)**: EF Core DbContext, repository implementations, authentication handler, persistence configuration.
+
+### Request flow
+
+`Controller` -> `UseCase` -> `Repository interface` -> `Repository implementation` -> `EF Core DbContext` -> `PostgreSQL`
+
+### Project structure
+
+```text
+src
+├─ Api
+│  ├─ Controllers
+│  └─ Authentication
+├─ Application
+│  ├─ Features
+│  ├─ DependencyInjection
+│  └─ Repositories
+├─ Domain
+│  ├─ Entities
+│  └─ Enums
+├─ Infrastructure
+│  ├─ Authentication
+│  ├─ DependencyInjection
+│  ├─ Persistence
+│  └─ Repositories
+├─ Program.cs
+└─ appsettings*.json
+```
+
+## Core design decisions
+
+- **Authentication**: custom Firebase authentication handler validates bearer tokens and builds user claims.
+- **User mapping**: if token claim is not a GUID, backend creates a stable GUID from Firebase UID.
+- **Concurrency control**: trade and strategy update/delete flows return `409 Conflict` when versions mismatch.
+- **Audit logging**: `AuditLogInterceptor` captures added/updated/deleted entity payloads during `SaveChanges`.
+- **Domain integrity**: entities enforce invariants (required fields, value bounds, lifecycle rules).
 
 ## Tech stack
 
 - .NET 10
 - ASP.NET Core Web API
-- Entity Framework Core
+- Entity Framework Core (Npgsql provider)
 - PostgreSQL
-- Swagger UI
-- Firebase Admin SDK
+- Firebase Admin SDK (token verification)
+- FluentValidation
+- Swagger/OpenAPI
 
-## Features
+## Configuration
 
-- Trades CRUD
-- Strategies CRUD
-- Daily journals CRUD
-- Firebase token-protected strategy and journal endpoints
-- Swagger UI at `/swagger`
+The backend reads values from:
 
-## Database and Firebase config
+- `src\appsettings.json`
+- `src\appsettings.Development.json`
 
-The app reads PostgreSQL and Firebase settings from `appsettings.json` / `appsettings.Development.json`.
+Required sections:
 
 ```json
-"Firebase": {
-  "ProjectId": "your-firebase-project-id",
-  "CredentialsPath": "C:\\path\\to\\firebase-service-account.json"
+{
+  "ConnectionStrings": {
+    "TradingJournalDb": "Host=localhost;Port=5432;Database=users;Username=app_user;Password=12345678"
+  },
+  "Firebase": {
+    "ProjectId": "your-firebase-project-id",
+    "CredentialsPath": "C:\\path\\to\\firebase-service-account.json"
+  }
 }
 ```
 
-## Setup
+## Local setup
 
-1. Create the PostgreSQL database named `users`.
-2. Set Firebase `ProjectId` and `CredentialsPath` in appsettings.
-3. Run migrations:
-
-```bash
-dotnet ef database update
-```
-
-4. Start the app:
+1. Create a PostgreSQL database (example: `users`).
+2. Set `ConnectionStrings:TradingJournalDb`.
+3. Set Firebase `ProjectId` and `CredentialsPath`.
+4. Apply migrations:
 
 ```bash
-dotnet run
+dotnet ef database update --project src\trading_journel_app.csproj
 ```
 
-## Frontend app (React)
+5. Run the API:
+
+```bash
+dotnet run --project src\trading_journel_app.csproj
+```
+
+Swagger is available at `/swagger` in Development.
+
+## Frontend (React)
 
 Frontend path: `src\Web`
 
-1. Copy `src/Web/.env.example` to `src/Web/.env` and set Firebase web config values.
-2. Ensure backend API base url matches `VITE_API_BASE_URL` (default `http://localhost:5116`).
-3. Run frontend:
+1. Copy `src\Web\.env.example` to `src\Web\.env`.
+2. Set Firebase web config values.
+3. Set `VITE_API_BASE_URL` (default `http://localhost:5116`).
+4. Start frontend:
 
 ```bash
 cd src\Web
@@ -60,29 +117,18 @@ npm install
 npm run dev
 ```
 
-## API endpoints
+## API surface
 
-- `POST /api/trades`
-- `GET /api/trades`
-- `GET /api/trades/{id}`
-- `PUT /api/trades/{id}`
-- `DELETE /api/trades/{id}?lastKnownVersion=...`
-- `POST /api/strategies`
-- `GET /api/strategies`
-- `GET /api/strategies/{id}`
-- `PUT /api/strategies/{id}`
-- `DELETE /api/strategies/{id}?lastKnownVersion=...`
-- `POST /api/dailyjournals`
-- `GET /api/dailyjournals`
-- `GET /api/dailyjournals/{id}`
-- `PUT /api/dailyjournals/{id}`
-- `DELETE /api/dailyjournals/{id}`
+- **Trades**: `POST/GET/GET by id/PUT/DELETE`
+  - `DELETE /api/trades/{id}?lastKnownVersion=...`
+- **Strategies**: `POST/GET/GET by id/PUT/DELETE`
+  - `DELETE /api/strategies/{id}?lastKnownVersion=...`
+- **Daily Journals**: `POST/GET/GET by id/PUT/DELETE`
 
-## Notes
+All endpoints are protected with bearer auth.
 
-- Delete strategy is blocked when trades still reference it.
-- Send Firebase ID token in `Authorization: Bearer <id-token>`.
-- The backend derives a stable internal GUID from the Firebase UID if the token does not include a GUID claim.
-- Trade and strategy updates/deletes use optimistic concurrency with `version` + `LastKnownVersion` / `lastKnownVersion`.
-- Swagger is enabled in development.
-- React frontend includes Firebase login page, strategy page, and trade page with table/calendar views.
+## Business rules and notes
+
+- Strategy deletion is blocked while related trades exist.
+- Use `Authorization: Bearer <firebase-id-token>`.
+- Swagger only in development mode.
