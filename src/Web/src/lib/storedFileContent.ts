@@ -40,16 +40,15 @@ export const normalizeStoredFileContentForSave = (value: string) => {
   return document.body.innerHTML;
 };
 
-export const resolveStoredFileContent = (
-  value: string,
-  resolvedUrls: Map<string, string>
-) => {
+export const resolveStoredFileContent = (value: string, resolvedUrls: Map<string, string>) => {
   const document = parseHtml(value);
 
   for (const image of document.querySelectorAll('img')) {
     const dataFileId = image.getAttribute('data-file-id')?.trim();
     const src = image.getAttribute('src')?.trim() ?? '';
-    const fileId = dataFileId || (src.startsWith(STORED_FILE_PREFIX) ? src.slice(STORED_FILE_PREFIX.length) : '');
+    const fileId =
+      dataFileId ||
+      (src.startsWith(STORED_FILE_PREFIX) ? src.slice(STORED_FILE_PREFIX.length) : '');
 
     if (!fileId) {
       continue;

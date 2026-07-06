@@ -1,0 +1,14 @@
+.git
+.gitignore
+.github
+.idea
+.vscode
+**/bin
+**/obj
+**/node_modules
+src/Web/dist
+src/firebase-credential-dev.json
+tests/bin
+tests/obj
+README.md
+docs

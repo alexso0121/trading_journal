@@ -219,10 +219,12 @@ export const TradeCalendarPage = () => {
     const loadJournalContent = async () => {
       const nextTradeIdea = existingJournal?.tradeIdea ?? existingJournal?.note ?? '';
       const nextReflection = existingJournal?.reflection ?? '';
-      const fileIds = [...new Set([
-        ...extractStoredFileIds(nextTradeIdea),
-        ...extractStoredFileIds(nextReflection),
-      ])];
+      const fileIds = [
+        ...new Set([
+          ...extractStoredFileIds(nextTradeIdea),
+          ...extractStoredFileIds(nextReflection),
+        ]),
+      ];
 
       if (fileIds.length === 0) {
         if (!cancelled) {

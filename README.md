@@ -34,7 +34,6 @@ The backend follows **Clean Architecture** (also known as Onion Architecture), e
 
 **Request Flow:**
 Controller → Command/Query → Handler (Use Case) → Repository (Interface) → Repository Impl → EF Core → PostgreSQL
-text---
 
 ## Core Technical Features
 
@@ -54,11 +53,11 @@ text---
 
 **Backend**
 
-- .NET 8 / ASP.NET Core Web API
+- .NET 10 preview / ASP.NET Core Web API
 - Entity Framework Core + Npgsql
 - Clean Architecture
 - Firebase Admin SDK
-- FluentValidation + MediatR
+- FluentValidation
 - TestContainers
 
 **Frontend**
@@ -85,29 +84,126 @@ src/
 ├── Domain/                 # Entities, Enums, Domain Events, Exceptions
 ├── Infrastructure/         # EF Core, Repositories, Firebase, R2 Service
 └── Web/                    # React + TypeScript Frontend
+tests/                      # Integration and repository tests
+docs/                       # Architecture and deployment notes
+```
 
-Local Development Setup
-Backend
+## Local Development Setup
 
-Update appsettings.Development.json with your PostgreSQL connection string and Firebase settings.
+### Backend
+
+Update [src/appsettings.Development.json](src/appsettings.Development.json) with your PostgreSQL, Firebase, and R2 settings.
+
 Apply database migrations:
 
-Bashdotnet ef database update --project src/trading_journel_app
+```bash
+dotnet ef database update --project src/trading_journel_app.csproj
+```
 
 Run the API:
 
-Bashdotnet run --project src/trading_journel_app
-Frontend
-Bashcd src/Web
-cp .env.example .env
+```bash
+dotnet run --project src/trading_journel_app.csproj
+```
+
+### Frontend
+
+From [src/Web](src/Web):
+
+```bash
 npm install
 npm run dev
-
-Key Design Decisions
-
-Optimistic Concurrency: Prevents silent data loss during concurrent edits
-Auditability: Every change is tracked for compliance and debugging
-Image Handling: Screenshots stored in R2 with clean URL generation
-Many-to-Many Relationships: Between Strategies and Trades
-Rich Journaling: Tiptap editor with image upload support
 ```
+
+Set the frontend API base URL with `VITE_API_BASE_URL` if needed for your environment.
+
+## Deployment Flow
+
+### API on Fly.io
+
+1. Create the Fly app.
+2. Create Fly Postgres.
+3. Attach or manually configure the PostgreSQL connection string.
+4. Set Fly secrets for:
+
+- `ConnectionStrings__TradingJournalDb`
+- `Firebase__ProjectId`
+- `FIREBASE_CREDENTIALS_JSON`
+- `Cors__AllowedOrigins__0`
+- `Storage__S3__BucketName`
+- `Storage__S3__ServiceUrl`
+- `Storage__S3__AccessKeyId`
+- `Storage__S3__SecretAccessKey`
+- `Storage__S3__AuthenticationRegion`
+- `Storage__S3__ForcePathStyle`
+- `Storage__S3__PublicBaseUrl`
+- `Storage__S3__UploadUrlExpiryMinutes`
+- `Storage__S3__DownloadUrlExpiryMinutes`
+- `Storage__S3__KeyPrefix`
+
+5. Deploy with `fly deploy`.
+6. Run EF Core migrations against the Fly Postgres database.
+
+### Frontend on Vercel
+
+- Project root: [src/Web](src/Web)
+- Framework preset: `Vite`
+- Build command: `npm run build`
+- Output directory: `dist`
+- Required env var: `VITE_API_BASE_URL=https://your-fly-api.fly.dev`
+
+### Frontend on Cloudflare Pages
+
+You only need this if you choose Cloudflare Pages instead of Vercel.
+
+- Root directory: [src/Web](src/Web)
+- Build command: `npm run build`
+- Output directory: `dist`
+- Required env var: `VITE_API_BASE_URL=https://your-fly-api.fly.dev`
+- SPA routing fallback is already included via [src/Web/public/\_redirects](src/Web/public/_redirects)
+
+### GitHub Actions
+
+The included workflow in [.github/workflows/deploy.yml](.github/workflows/deploy.yml) expects these secrets:
+
+- `FLY_API_TOKEN`
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+
+And this repository variable:
+
+- `VITE_API_BASE_URL`
+
+## Firebase and CORS Checklist
+
+For production, make sure you add your deployed frontend domain to:
+
+- Firebase Authentication authorized domains
+- backend CORS allowed origins
+
+## Key Design Decisions
+
+- Optimistic concurrency: prevents silent data loss during concurrent edits
+- Auditability: every change is tracked for compliance and debugging
+- Image handling: images are stored in Cloudflare R2 with app-managed file references
+- Many-to-many relationships: strategies and tags use explicit relational mapping
+- Rich journaling: Tiptap editor supports image upload and persisted file references
+
+## Deployment Overview
+
+- API: Fly.io
+- Database: Fly Postgres
+- Frontend: Vercel
+- Optional frontend alternative: Cloudflare Pages
+- Object storage: Cloudflare R2
+
+Deployment files included in this repo:
+
+- [Dockerfile](Dockerfile)
+- [fly.toml](fly.toml)
+- [.github/workflows/deploy.yml](.github/workflows/deploy.yml)
+- [src/Web/vercel.json](src/Web/vercel.json)
+- [src/Web/public/\_redirects](src/Web/public/_redirects)
+
+For the full step-by-step deployment guide, see [docs/deployment.md](docs/deployment.md).
