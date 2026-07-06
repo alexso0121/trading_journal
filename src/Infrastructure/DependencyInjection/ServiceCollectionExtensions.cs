@@ -29,6 +29,7 @@ public static class ServiceCollectionExtensions
                 .AddInterceptors(provider.GetRequiredService<AuditLogInterceptor>()));
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<TradingJournalDbContext>());
         services.AddScoped<IDailyJournalRepository, DailyJournalRepository>();
+        services.AddScoped<IStoredFileRepository, StoredFileRepository>();
         services.AddScoped<IStrategyRepository, StrategyRepository>();
         services.AddScoped<ITradeRepository, TradeRepository>();
         services.Configure<S3ScreenshotStorageOptions>(configuration.GetSection(S3ScreenshotStorageOptions.SectionName));
@@ -61,6 +62,7 @@ public static class ServiceCollectionExtensions
             var awsOptions = configuration.GetAWSOptions();
             return awsOptions.CreateServiceClient<IAmazonS3>();
         });
+        services.AddScoped<IStoredFileStorage, S3StoredFileStorage>();
         services.AddScoped<IJournalScreenshotStorage, StubJournalScreenshotStorage>();
         services.AddScoped<IStrategyContentImageStorage, S3StrategyContentImageStorage>();
 

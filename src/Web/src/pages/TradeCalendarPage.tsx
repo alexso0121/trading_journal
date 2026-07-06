@@ -12,6 +12,11 @@ import {
 import { Dialog } from '../components/Dialog';
 import { StrategyRichTextEditor } from '../components/StrategyRichTextEditor';
 import { createApiClient } from '../lib/apiClient';
+import {
+  extractStoredFileIds,
+  normalizeStoredFileContentForSave,
+  resolveStoredFileContent,
+} from '../lib/storedFileContent';
 import { useAuth } from '../providers/AuthProvider';
 import type { DailyJournal, Strategy, Trade } from '../types/models';
 
@@ -45,25 +50,11 @@ const toDayKey = (date: Date) => {
 const toJournalIso = (date: Date) =>
   new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())).toISOString();
 
-const replaceUrls = (value: string, mapping: Map<string, string>) => {
-  let result = value;
-  for (const [from, to] of mapping.entries()) {
-    if (!from || from === to) {
-      continue;
-    }
-
-    result = result.split(from).join(to);
-  }
-
-  return result;
-};
-
 const hasRichTextContent = (value: string) =>
   value
     .replace(/<[^>]*>/g, ' ')
     .replace(/&nbsp;/gi, ' ')
-    .replace(/\s+/g, '')
-    .length > 0;
+    .replace(/\s+/g, '').length > 0;
 
 const toDateTimeLocal = (date: Date) => {
   const timezoneOffset = date.getTimezoneOffset() * 60_000;
@@ -121,8 +112,7 @@ export const TradeCalendarPage = () => {
   const [journalReflection, setJournalReflection] = useState('');
   const [saving, setSaving] = useState(false);
   const suppressNextSlotSelectionRef = useRef(false);
-  const tempImageUrlByStorageKeyRef = useRef<Map<string, string>>(new Map());
-  const [pendingTempStorageKeys, setPendingTempStorageKeys] = useState<string[]>([]);
+  const [pendingJournalFileIds, setPendingJournalFileIds] = useState<string[]>([]);
 
   const loadCalendarTrades = async (rangeStart: Date, rangeEnd: Date) => {
     setLoadingCalendarTrades(true);
@@ -198,8 +188,9 @@ export const TradeCalendarPage = () => {
     () =>
       calendarTrades.map((trade) => {
         const openTime = new Date(trade.openTimeUtc);
+        const pnlSymbol = trade.pnl >= 0 ? '+' : '-';
         return {
-          title: `${trade.ticker} (${trade.quantity})`,
+          title: `${trade.ticker} (${pnlSymbol}${Math.abs(trade.pnl)})`,
           start: openTime,
           end: openTime,
           allDay: false,
@@ -223,11 +214,49 @@ export const TradeCalendarPage = () => {
   }, [journals, selectedJournalDatePart]);
 
   useEffect(() => {
-    setJournalTradeIdea(existingJournal?.tradeIdea ?? existingJournal?.note ?? '');
-    setJournalReflection(existingJournal?.reflection ?? '');
-    tempImageUrlByStorageKeyRef.current.clear();
-    setPendingTempStorageKeys([]);
-  }, [existingJournal]);
+    let cancelled = false;
+
+    const loadJournalContent = async () => {
+      const nextTradeIdea = existingJournal?.tradeIdea ?? existingJournal?.note ?? '';
+      const nextReflection = existingJournal?.reflection ?? '';
+      const fileIds = [...new Set([
+        ...extractStoredFileIds(nextTradeIdea),
+        ...extractStoredFileIds(nextReflection),
+      ])];
+
+      if (fileIds.length === 0) {
+        if (!cancelled) {
+          setJournalTradeIdea(nextTradeIdea);
+          setJournalReflection(nextReflection);
+        }
+        return;
+      }
+
+      try {
+        const resolved = await api.resolveStoredFiles({ fileIds });
+        const resolvedUrls = new Map(
+          resolved.items.map((item) => [item.fileId, item.downloadUrl] as const)
+        );
+
+        if (!cancelled) {
+          setJournalTradeIdea(resolveStoredFileContent(nextTradeIdea, resolvedUrls));
+          setJournalReflection(resolveStoredFileContent(nextReflection, resolvedUrls));
+        }
+      } catch {
+        if (!cancelled) {
+          setJournalTradeIdea(nextTradeIdea);
+          setJournalReflection(nextReflection);
+        }
+      }
+    };
+
+    setPendingJournalFileIds([]);
+    void loadJournalContent();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [api, existingJournal]);
 
   const openDayDialog = (date: Date) => {
     setSelectedDate(date);
@@ -303,60 +332,30 @@ export const TradeCalendarPage = () => {
     try {
       const basePayload = {
         journalDateUtc: toJournalIso(selectedDate),
-        tradeIdea: journalTradeIdea,
-        reflection: journalReflection,
+        tradeIdea: normalizeStoredFileContentForSave(journalTradeIdea),
+        reflection: normalizeStoredFileContentForSave(journalReflection),
       };
 
-      let journal: DailyJournal;
+      const journal = existingJournal
+        ? await api.updateDailyJournal(existingJournal.id, basePayload)
+        : await api.createDailyJournal(basePayload);
 
-      if (existingJournal) {
-        journal = await api.updateDailyJournal(existingJournal.id, basePayload);
-      } else {
-        journal = await api.createDailyJournal(basePayload);
-      }
-
-      let finalJournal = journal;
-
-      if (pendingTempStorageKeys.length > 0) {
-        const finalizeResponse = await api.finalizeDailyJournalScreenshots(journal.id, {
-          storageKeys: pendingTempStorageKeys,
+      if (pendingJournalFileIds.length > 0) {
+        await api.finalizeDailyJournalFiles(journal.id, {
+          fileIds: pendingJournalFileIds,
         });
-
-        const urlMapping = new Map<string, string>();
-        for (const item of finalizeResponse.items) {
-          const tempUrl = tempImageUrlByStorageKeyRef.current.get(item.tempStorageKey);
-          if (tempUrl) {
-            urlMapping.set(tempUrl, item.downloadUrl);
-          }
-        }
-
-        if (urlMapping.size > 0) {
-          const finalizedTradeIdea = replaceUrls(basePayload.tradeIdea, urlMapping);
-          const finalizedReflection = replaceUrls(basePayload.reflection, urlMapping);
-
-          finalJournal = await api.updateDailyJournal(journal.id, {
-            journalDateUtc: basePayload.journalDateUtc,
-            tradeIdea: finalizedTradeIdea,
-            reflection: finalizedReflection,
-          });
-
-          setJournalTradeIdea(finalizedTradeIdea);
-          setJournalReflection(finalizedReflection);
-        }
-
-        setPendingTempStorageKeys([]);
-        tempImageUrlByStorageKeyRef.current.clear();
       }
+      setPendingJournalFileIds([]);
 
       setJournals((prev) => {
-        const index = prev.findIndex((item) => item.id === finalJournal.id);
+        const index = prev.findIndex((item) => item.id === journal.id);
         if (index >= 0) {
           var next = [...prev];
-          next[index] = finalJournal;
+          next[index] = journal;
           return next;
         }
 
-        return [finalJournal, ...prev];
+        return [journal, ...prev];
       });
 
       setDialogOpen(false);
@@ -367,23 +366,22 @@ export const TradeCalendarPage = () => {
     }
   };
 
-  const uploadEditorImage = async (file: File): Promise<string> => {
-    const uploadInfo = await api.createDailyJournalTempScreenshotUploadUrl({
+  const uploadEditorImage = async (file: File): Promise<{ src: string; fileId: string }> => {
+    const uploadInfo = await api.createDailyJournalTempFileUploadUrl({
       fileName: file.name,
       contentType: file.type,
     });
 
     await api.uploadFileToPresignedUrl(uploadInfo.uploadUrl, file);
-    tempImageUrlByStorageKeyRef.current.set(uploadInfo.storageKey, uploadInfo.downloadUrl);
-    setPendingTempStorageKeys((prev) => {
-      if (prev.includes(uploadInfo.storageKey)) {
+    setPendingJournalFileIds((prev) => {
+      if (prev.includes(uploadInfo.fileId)) {
         return prev;
       }
 
-      return [...prev, uploadInfo.storageKey];
+      return [...prev, uploadInfo.fileId];
     });
 
-    return uploadInfo.downloadUrl;
+    return { src: uploadInfo.downloadUrl, fileId: uploadInfo.fileId };
   };
 
   const loading = loadingCalendarTrades || loadingJournals || loadingTrades;

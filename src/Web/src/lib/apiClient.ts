@@ -2,20 +2,20 @@ import axios, { type AxiosError } from 'axios';
 import type {
   AuditLog,
   CreateJournalScreenshotUploadUrlPayload,
+  CreateStoredFileTempUploadUrlResponse,
   CreateDailyJournalPayload,
-  CreateStrategyContentImageUploadUrlPayload,
   CreateStrategyPayload,
   CreateTradePayload,
   DailyJournal,
-  FinalizeDailyJournalScreenshotsPayload,
-  FinalizeDailyJournalScreenshotsResponse,
+  FinalizeStoredFilesPayload,
+  FinalizeStoredFilesResponse,
   GetAuditLogsParams,
   GetStrategiesParams,
   GetTradesParams,
-  JournalScreenshotUploadUrlResponse,
   PagedResponse,
+  ResolveStoredFilesPayload,
+  ResolveStoredFilesResponse,
   Strategy,
-  StrategyContentImageUploadUrlResponse,
   Trade,
   UpdateDailyJournalPayload,
   UpdateStrategyPayload,
@@ -210,13 +210,12 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
     }
   },
 
-  async createDailyJournalScreenshotUploadUrl(
-    journalId: string,
+  async createDailyJournalTempFileUploadUrl(
     payload: CreateJournalScreenshotUploadUrlPayload
-  ): Promise<JournalScreenshotUploadUrlResponse> {
+  ): Promise<CreateStoredFileTempUploadUrlResponse> {
     try {
-      const response = await api.post<JournalScreenshotUploadUrlResponse>(
-        `/api/dailyjournals/${journalId}/screenshot/upload-url`,
+      const response = await api.post<CreateStoredFileTempUploadUrlResponse>(
+        '/api/files/journal-content/temp-upload-url',
         payload,
         {
           headers: await authHeader(resolveToken),
@@ -228,29 +227,12 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
     }
   },
 
-  async createDailyJournalTempScreenshotUploadUrl(
-    payload: CreateJournalScreenshotUploadUrlPayload
-  ): Promise<JournalScreenshotUploadUrlResponse> {
-    try {
-      const response = await api.post<JournalScreenshotUploadUrlResponse>(
-        '/api/dailyjournals/screenshot/temp-upload-url',
-        payload,
-        {
-          headers: await authHeader(resolveToken),
-        }
-      );
-      return response.data;
-    } catch (error) {
-      throw toApiError(error);
-    }
-  },
-
-  async finalizeDailyJournalScreenshots(
+  async finalizeDailyJournalFiles(
     journalId: string,
-    payload: FinalizeDailyJournalScreenshotsPayload
-  ): Promise<FinalizeDailyJournalScreenshotsResponse> {
+    payload: FinalizeStoredFilesPayload
+  ): Promise<FinalizeStoredFilesResponse> {
     try {
-      const response = await api.post<FinalizeDailyJournalScreenshotsResponse>(
+      const response = await api.post<FinalizeStoredFilesResponse>(
         `/api/dailyjournals/${journalId}/screenshot/finalize`,
         payload,
         {
@@ -275,18 +257,48 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
     }
   },
 
-  async createStrategyContentImageUploadUrl(
-    strategyId: string,
-    payload: CreateStrategyContentImageUploadUrlPayload
-  ): Promise<StrategyContentImageUploadUrlResponse> {
+  async createStrategyContentTempFileUploadUrl(
+    payload: CreateJournalScreenshotUploadUrlPayload
+  ): Promise<CreateStoredFileTempUploadUrlResponse> {
     try {
-      const response = await api.post<StrategyContentImageUploadUrlResponse>(
-        `/api/strategies/${strategyId}/content-image/upload-url`,
+      const response = await api.post<CreateStoredFileTempUploadUrlResponse>(
+        '/api/files/strategy-content/temp-upload-url',
         payload,
         {
           headers: await authHeader(resolveToken),
         }
       );
+      return response.data;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+
+  async finalizeStrategyFiles(
+    strategyId: string,
+    payload: FinalizeStoredFilesPayload
+  ): Promise<FinalizeStoredFilesResponse> {
+    try {
+      const response = await api.post<FinalizeStoredFilesResponse>(
+        `/api/strategies/${strategyId}/content-image/finalize`,
+        payload,
+        {
+          headers: await authHeader(resolveToken),
+        }
+      );
+      return response.data;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+
+  async resolveStoredFiles(
+    payload: ResolveStoredFilesPayload
+  ): Promise<ResolveStoredFilesResponse> {
+    try {
+      const response = await api.post<ResolveStoredFilesResponse>('/api/files/resolve', payload, {
+        headers: await authHeader(resolveToken),
+      });
       return response.data;
     } catch (error) {
       throw toApiError(error);

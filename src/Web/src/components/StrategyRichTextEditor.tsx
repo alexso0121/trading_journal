@@ -3,6 +3,27 @@ import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import { useEffect, useRef, useState } from 'react';
 
+const StoredFileImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      fileId: {
+        default: null,
+        parseHTML: (element) => element.getAttribute('data-file-id'),
+        renderHTML: (attributes) => {
+          if (!attributes.fileId) {
+            return {};
+          }
+
+          return {
+            'data-file-id': attributes.fileId,
+          };
+        },
+      },
+    };
+  },
+});
+
 const ToolbarIcon = ({ path }: { path: string }) => (
   <svg
     viewBox="0 0 16 16"
@@ -20,7 +41,7 @@ type Props = {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  onImageUpload?: (file: File) => Promise<string>;
+  onImageUpload?: (file: File) => Promise<{ src: string; fileId: string }>;
 };
 
 export const StrategyRichTextEditor = ({ value, onChange, placeholder, onImageUpload }: Props) => {
@@ -28,7 +49,7 @@ export const StrategyRichTextEditor = ({ value, onChange, placeholder, onImageUp
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const editor = useEditor({
-    extensions: [StarterKit, Image],
+    extensions: [StarterKit, StoredFileImage],
     content: value || '<p></p>',
     editorProps: {
       attributes: {
@@ -65,8 +86,19 @@ export const StrategyRichTextEditor = ({ value, onChange, placeholder, onImageUp
 
     setUploadingImage(true);
     try {
-      const imageUrl = await onImageUpload(file);
-      editor.chain().focus().setImage({ src: imageUrl, alt: file.name }).run();
+      const uploadedImage = await onImageUpload(file);
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: 'image',
+          attrs: {
+            src: uploadedImage.src,
+            alt: file.name,
+            fileId: uploadedImage.fileId,
+          },
+        })
+        .run();
     } finally {
       setUploadingImage(false);
       event.target.value = '';

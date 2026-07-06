@@ -149,36 +149,37 @@ export type CreateJournalScreenshotUploadUrlPayload = {
   contentType: string;
 };
 
-export type FinalizeDailyJournalScreenshotsPayload = {
-  storageKeys: string[];
-};
-
-export type JournalScreenshotUploadUrlResponse = {
-  storageKey: string;
+export type CreateStoredFileTempUploadUrlResponse = {
+  fileId: string;
   uploadUrl: string;
   downloadUrl: string;
   expiresAtUtc: string;
 };
 
-export type FinalizedDailyJournalScreenshotItem = {
-  tempStorageKey: string;
-  storageKey: string;
+export type FinalizeStoredFilesPayload = {
+  fileIds: string[];
+};
+
+export type FinalizedStoredFileItem = {
+  fileId: string;
   downloadUrl: string;
   expiresAtUtc: string;
 };
 
-export type FinalizeDailyJournalScreenshotsResponse = {
-  items: FinalizedDailyJournalScreenshotItem[];
+export type FinalizeStoredFilesResponse = {
+  items: FinalizedStoredFileItem[];
 };
 
-export type CreateStrategyContentImageUploadUrlPayload = {
-  fileName: string;
-  contentType: string;
+export type ResolveStoredFilesPayload = {
+  fileIds: string[];
 };
 
-export type StrategyContentImageUploadUrlResponse = {
-  storageKey: string;
-  uploadUrl: string;
+export type ResolvedStoredFileItem = {
+  fileId: string;
   downloadUrl: string;
   expiresAtUtc: string;
+};
+
+export type ResolveStoredFilesResponse = {
+  items: ResolvedStoredFileItem[];
 };

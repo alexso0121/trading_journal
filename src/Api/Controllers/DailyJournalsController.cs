@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using trading_journel_app.Api.Authentication;
 using trading_journel_app.Application.Features.DailyJournals;
 using trading_journel_app.Application.Features.DailyJournals.CreateDailyJournal;
+using trading_journel_app.Application.Features.DailyJournals.Files;
 using trading_journel_app.Application.Features.DailyJournals.Screenshots;
 using trading_journel_app.Application.Features.DailyJournals.UpdateDailyJournal;
 
@@ -107,8 +108,8 @@ public sealed class DailyJournalsController : ControllerBase
     [HttpPost("{id:guid}/screenshot/finalize")]
     public async Task<IActionResult> FinalizeScreenshots(
         Guid id,
-        [FromBody] FinalizeDailyJournalScreenshotsRequest request,
-        [FromServices] FinalizeDailyJournalScreenshotsUseCase useCase,
+        [FromBody] FinalizeDailyJournalFilesRequest request,
+        [FromServices] FinalizeDailyJournalFilesUseCase useCase,
         CancellationToken cancellationToken)
     {
         if (!User.TryGetCurrentUserId(out var userId))

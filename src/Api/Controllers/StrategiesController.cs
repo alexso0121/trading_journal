@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using trading_journel_app.Api.Authentication;
 using trading_journel_app.Application.Features.Strategies;
 using trading_journel_app.Application.Features.Strategies.CreateStrategy;
+using trading_journel_app.Application.Features.Strategies.Files;
 using trading_journel_app.Application.Features.Strategies.Images;
 using trading_journel_app.Application.Features.Strategies.UpdateStrategy;
 using trading_journel_app.Application.Strategies;
@@ -108,6 +109,22 @@ public sealed class StrategiesController : ControllerBase
         Guid id,
         [FromBody] CreateStrategyContentImageUploadUrlRequest request,
         [FromServices] CreateStrategyContentImageUploadUrlUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized("Firebase token must include a GUID user id claim.");
+        }
+
+        var response = await useCase.ExecuteAsync(userId, id, request, cancellationToken);
+        return response is null ? NotFound() : Ok(response);
+    }
+
+    [HttpPost("{id:guid}/content-image/finalize")]
+    public async Task<IActionResult> FinalizeContentImages(
+        Guid id,
+        [FromBody] FinalizeStrategyFilesRequest request,
+        [FromServices] FinalizeStrategyFilesUseCase useCase,
         CancellationToken cancellationToken)
     {
         if (!User.TryGetCurrentUserId(out var userId))

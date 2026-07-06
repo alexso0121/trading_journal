@@ -85,7 +85,9 @@ export const CreateTradeDialog = ({
             { value: '4', label: 'Crypto' },
             { value: '5', label: 'Forex' },
           ]}
-          onChange={(value) => onChange((previous) => ({ ...previous, asset: Number(value ?? '1') }))}
+          onChange={(value) =>
+            onChange((previous) => ({ ...previous, asset: Number(value ?? '1') }))
+          }
         />
         <Select
           label="Direction"
@@ -145,12 +147,7 @@ export const CreateTradeDialog = ({
         />
       </div>
       <div className="mt-3">
-        <Button
-          variant="filled"
-          color="dark"
-          onClick={onSave}
-          disabled={creating}
-        >
+        <Button variant="filled" color="dark" onClick={onSave} disabled={creating}>
           {creating ? 'Saving...' : 'Save'}
         </Button>
       </div>

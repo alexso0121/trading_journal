@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Button, Select, TextInput, Textarea } from '@mantine/core';
 import { DataTable } from 'mantine-datatable';
 import 'mantine-datatable/styles.css';
 import {
@@ -373,10 +374,7 @@ export const TradesPage = () => {
               title: 'Open',
               render: (trade) => new Date(trade.openTimeUtc).toLocaleString(),
             },
-            {
-              accessor: 'version',
-              title: 'Version',
-            },
+
             {
               accessor: 'actions',
               title: '',
@@ -431,107 +429,106 @@ export const TradesPage = () => {
         }}
       >
         <div className="grid gap-2 md:grid-cols-2">
-          <select
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+          <Select
+            label="Strategy"
             value={editForm.strategyId}
-            onChange={(e) => setEditForm((prev) => ({ ...prev, strategyId: e.target.value }))}
-          >
-            {strategies.map((strategy) => (
-              <option key={strategy.id} value={strategy.id}>
-                {strategy.name}
-              </option>
-            ))}
-          </select>
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+            data={strategies.map((strategy) => ({ value: strategy.id, label: strategy.name }))}
+            onChange={(value) => setEditForm((prev) => ({ ...prev, strategyId: value ?? '' }))}
+          />
+          <TextInput
+            label="Ticker"
             value={editForm.ticker}
             onChange={(e) => setEditForm((prev) => ({ ...prev, ticker: e.target.value }))}
           />
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+          <TextInput
+            label="Market"
             value={editForm.market}
             onChange={(e) => setEditForm((prev) => ({ ...prev, market: e.target.value }))}
           />
-          <select
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            value={editForm.asset}
-            onChange={(e) => setEditForm((prev) => ({ ...prev, asset: Number(e.target.value) }))}
-          >
-            <option value={1}>Stock</option>
-            <option value={2}>Future</option>
-            <option value={3}>Contract</option>
-            <option value={4}>Crypto</option>
-            <option value={5}>Forex</option>
-          </select>
-          <select
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            value={editForm.direction}
-            onChange={(e) =>
-              setEditForm((prev) => ({ ...prev, direction: Number(e.target.value) }))
+          <Select
+            label="Asset"
+            value={String(editForm.asset)}
+            data={[
+              { value: '1', label: 'Stock' },
+              { value: '2', label: 'Future' },
+              { value: '3', label: 'Contract' },
+              { value: '4', label: 'Crypto' },
+              { value: '5', label: 'Forex' },
+            ]}
+            onChange={(value) => setEditForm((prev) => ({ ...prev, asset: Number(value ?? '1') }))}
+          />
+          <Select
+            label="Direction"
+            value={String(editForm.direction)}
+            data={[
+              { value: '1', label: 'Long' },
+              { value: '2', label: 'Short' },
+            ]}
+            onChange={(value) =>
+              setEditForm((prev) => ({ ...prev, direction: Number(value ?? '1') }))
             }
-          >
-            <option value={1}>Long</option>
-            <option value={2}>Short</option>
-          </select>
-          <select
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            value={editForm.status}
-            onChange={(e) => setEditForm((prev) => ({ ...prev, status: Number(e.target.value) }))}
-          >
-            <option value={1}>Open</option>
-            <option value={2}>Closed</option>
-            <option value={3}>Cancelled</option>
-          </select>
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+          />
+          <Select
+            label="Status"
+            value={String(editForm.status)}
+            data={[
+              { value: '1', label: 'Open' },
+              { value: '2', label: 'Closed' },
+              { value: '3', label: 'Cancelled' },
+            ]}
+            onChange={(value) => setEditForm((prev) => ({ ...prev, status: Number(value ?? '1') }))}
+          />
+          <TextInput
+            label="Entry price"
             type="number"
             step="0.000001"
             value={editForm.entryPrice}
             onChange={(e) => setEditForm((prev) => ({ ...prev, entryPrice: e.target.value }))}
           />
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+          <TextInput
+            label="Quantity"
             type="number"
             step="0.000001"
             value={editForm.quantity}
             onChange={(e) => setEditForm((prev) => ({ ...prev, quantity: e.target.value }))}
           />
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+          <TextInput
+            label="PnL"
             type="number"
             step="0.000001"
             value={editForm.pnl}
             onChange={(e) => setEditForm((prev) => ({ ...prev, pnl: e.target.value }))}
           />
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+          <TextInput
+            label="Open time"
             type="datetime-local"
             value={editForm.openTimeUtc}
             onChange={(e) => setEditForm((prev) => ({ ...prev, openTimeUtc: e.target.value }))}
           />
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+          <TextInput
+            label="Close time"
             type="datetime-local"
             value={editForm.closeTimeUtc}
             onChange={(e) => setEditForm((prev) => ({ ...prev, closeTimeUtc: e.target.value }))}
           />
-          <textarea
-            className="md:col-span-2 rounded-md border border-slate-300 px-3 py-2 text-sm"
+          <Textarea
+            label="Comments"
+            className="md:col-span-2"
             placeholder="Comments"
             value={editForm.comments}
             onChange={(e) => setEditForm((prev) => ({ ...prev, comments: e.target.value }))}
           />
         </div>
         <div className="mt-3">
-          <button
-            type="button"
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800"
+          <Button
+            variant="filled"
+            color="dark"
             onClick={() => {
               void onUpdate();
             }}
           >
             Update
-          </button>
+          </Button>
         </div>
       </Dialog>
     </section>

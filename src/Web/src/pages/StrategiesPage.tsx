@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Button, TextInput } from '@mantine/core';
 import { DataTable } from 'mantine-datatable';
 import 'mantine-datatable/styles.css';
 import { Dialog } from '../components/Dialog';
 import { StrategyRichTextEditor } from '../components/StrategyRichTextEditor';
 import { ApiError, createApiClient } from '../lib/apiClient';
+import {
+  extractStoredFileIds,
+  normalizeStoredFileContentForSave,
+  resolveStoredFileContent,
+} from '../lib/storedFileContent';
 import { useAuth } from '../providers/AuthProvider';
 import type { Strategy } from '../types/models';
 
@@ -40,7 +46,8 @@ export const StrategiesPage = () => {
   const [createForm, setCreateForm] = useState<StrategyFormState>(emptyForm);
   const [editForm, setEditForm] = useState<StrategyFormState>(emptyForm);
   const [editing, setEditing] = useState<Strategy | null>(null);
-  const [createDraftStrategy, setCreateDraftStrategy] = useState<Strategy | null>(null);
+  const [pendingCreateFileIds, setPendingCreateFileIds] = useState<string[]>([]);
+  const [pendingEditFileIds, setPendingEditFileIds] = useState<string[]>([]);
 
   const appendTag = (form: StrategyFormState): StrategyFormState => {
     const candidate = form.tagInput.trim();
@@ -109,22 +116,19 @@ export const StrategiesPage = () => {
     try {
       const tags = appendTag(createForm).tags;
 
-      if (createDraftStrategy) {
-        await api.updateStrategy(createDraftStrategy.id, {
-          name: createForm.name.trim(),
-          description: createForm.description.trim(),
-          tags,
-          lastKnownVersion: createDraftStrategy.version,
-        });
-      } else {
-        await api.createStrategy({
-          name: createForm.name.trim(),
-          description: createForm.description.trim(),
-          tags,
+      const created = await api.createStrategy({
+        name: createForm.name.trim(),
+        description: normalizeStoredFileContentForSave(createForm.description.trim()),
+        tags,
+      });
+
+      if (pendingCreateFileIds.length > 0) {
+        await api.finalizeStrategyFiles(created.id, {
+          fileIds: pendingCreateFileIds,
         });
       }
 
-      setCreateDraftStrategy(null);
+      setPendingCreateFileIds([]);
       setCreateForm(emptyForm);
       setCreateOpen(false);
       setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
@@ -152,14 +156,26 @@ export const StrategiesPage = () => {
     }
   };
 
-  const startEdit = (strategy: Strategy) => {
+  const startEdit = async (strategy: Strategy) => {
+    const fileIds = extractStoredFileIds(strategy.description);
+    let resolvedDescription = strategy.description;
+
+    if (fileIds.length > 0) {
+      const resolved = await api.resolveStoredFiles({ fileIds });
+      const resolvedUrls = new Map(
+        resolved.items.map((item) => [item.fileId, item.downloadUrl] as const)
+      );
+      resolvedDescription = resolveStoredFileContent(strategy.description, resolvedUrls);
+    }
+
     setEditing(strategy);
     setEditForm({
       name: strategy.name,
-      description: strategy.description,
+      description: resolvedDescription,
       tags: strategy.tags.map((tag) => tag.name),
       tagInput: '',
     });
+    setPendingEditFileIds([]);
     setEditOpen(true);
   };
 
@@ -177,10 +193,18 @@ export const StrategiesPage = () => {
     try {
       const updated = await api.updateStrategy(editing.id, {
         name: editForm.name.trim(),
-        description: editForm.description.trim(),
+        description: normalizeStoredFileContentForSave(editForm.description.trim()),
         tags: editForm.tags,
         lastKnownVersion: editing.version,
       });
+
+      if (pendingEditFileIds.length > 0) {
+        await api.finalizeStrategyFiles(editing.id, {
+          fileIds: pendingEditFileIds,
+        });
+      }
+
+      setPendingEditFileIds([]);
       setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
       setEditOpen(false);
       setEditing(null);
@@ -194,52 +218,34 @@ export const StrategiesPage = () => {
     }
   };
 
-  const uploadStrategyEditorImage = async (file: File): Promise<string> => {
-    if (!editing) {
-      throw new Error('Save strategy first before uploading images.');
-    }
-
-    const uploadInfo = await api.createStrategyContentImageUploadUrl(editing.id, {
+  const uploadStrategyEditorImage = async (
+    file: File
+  ): Promise<{ src: string; fileId: string }> => {
+    const uploadInfo = await api.createStrategyContentTempFileUploadUrl({
       fileName: file.name,
       contentType: file.type,
     });
 
     await api.uploadFileToPresignedUrl(uploadInfo.uploadUrl, file);
-    return uploadInfo.downloadUrl;
+    setPendingEditFileIds((prev) =>
+      prev.includes(uploadInfo.fileId) ? prev : [...prev, uploadInfo.fileId]
+    );
+    return { src: uploadInfo.downloadUrl, fileId: uploadInfo.fileId };
   };
 
-  const uploadCreateStrategyEditorImage = async (file: File): Promise<string> => {
-    let draft = createDraftStrategy;
-
-    if (!draft) {
-      if (!createForm.name.trim()) {
-        throw new Error('Enter a strategy name before uploading images.');
-      }
-
-      const normalized = appendTag(createForm);
-      const created = await api.createStrategy({
-        name: normalized.name.trim(),
-        description: normalized.description.trim(),
-        tags: normalized.tags,
-      });
-
-      setCreateForm((prev) => ({
-        ...prev,
-        tags: normalized.tags,
-        tagInput: '',
-      }));
-
-      setCreateDraftStrategy(created);
-      draft = created;
-    }
-
-    const uploadInfo = await api.createStrategyContentImageUploadUrl(draft.id, {
+  const uploadCreateStrategyEditorImage = async (
+    file: File
+  ): Promise<{ src: string; fileId: string }> => {
+    const uploadInfo = await api.createStrategyContentTempFileUploadUrl({
       fileName: file.name,
       contentType: file.type,
     });
 
     await api.uploadFileToPresignedUrl(uploadInfo.uploadUrl, file);
-    return uploadInfo.downloadUrl;
+    setPendingCreateFileIds((prev) =>
+      prev.includes(uploadInfo.fileId) ? prev : [...prev, uploadInfo.fileId]
+    );
+    return { src: uploadInfo.downloadUrl, fileId: uploadInfo.fileId };
   };
 
   return (
@@ -325,7 +331,9 @@ export const StrategiesPage = () => {
                   <button
                     type="button"
                     className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-100"
-                    onClick={() => startEdit(strategy)}
+                    onClick={() => {
+                      void startEdit(strategy);
+                    }}
                   >
                     Edit
                   </button>
@@ -350,18 +358,17 @@ export const StrategiesPage = () => {
         title="Create strategy"
         onClose={() => {
           setCreateOpen(false);
-          setCreateDraftStrategy(null);
+          setPendingCreateFileIds([]);
           setCreateForm(emptyForm);
         }}
       >
         <div className="space-y-3">
-          <input
+          <TextInput
+            label="Strategy name"
             placeholder="Strategy name"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
             value={createForm.name}
             onChange={(e) => setCreateForm((prev) => ({ ...prev, name: e.target.value }))}
           />
-          <textarea hidden value={createForm.description} onChange={() => {}} />
           <StrategyRichTextEditor
             value={createForm.description}
             onChange={(description) => setCreateForm((prev) => ({ ...prev, description }))}
@@ -369,9 +376,9 @@ export const StrategiesPage = () => {
             placeholder="Rich text strategy notes"
           />
           <div className="space-y-2">
-            <input
+            <TextInput
+              label="Tags"
               placeholder="Add tags and press Enter"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               value={createForm.tagInput}
               onChange={(e) => setCreateForm((prev) => ({ ...prev, tagInput: e.target.value }))}
               onKeyDown={(e) => {
@@ -397,15 +404,15 @@ export const StrategiesPage = () => {
               ))}
             </div>
           </div>
-          <button
-            type="button"
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800"
+          <Button
+            variant="filled"
+            color="dark"
             onClick={() => {
               void onCreate();
             }}
           >
             Save
-          </button>
+          </Button>
         </div>
       </Dialog>
 
@@ -415,15 +422,15 @@ export const StrategiesPage = () => {
         onClose={() => {
           setEditOpen(false);
           setEditing(null);
+          setPendingEditFileIds([]);
         }}
       >
         <div className="space-y-3">
-          <input
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          <TextInput
+            label="Strategy name"
             value={editForm.name}
             onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
           />
-          <textarea hidden value={editForm.description} onChange={() => {}} />
           <StrategyRichTextEditor
             value={editForm.description}
             onChange={(description) => setEditForm((prev) => ({ ...prev, description }))}
@@ -431,9 +438,9 @@ export const StrategiesPage = () => {
             placeholder="Rich text strategy notes"
           />
           <div className="space-y-2">
-            <input
+            <TextInput
+              label="Tags"
               placeholder="Add tags and press Enter"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               value={editForm.tagInput}
               onChange={(e) => setEditForm((prev) => ({ ...prev, tagInput: e.target.value }))}
               onKeyDown={(e) => {
@@ -459,15 +466,15 @@ export const StrategiesPage = () => {
               ))}
             </div>
           </div>
-          <button
-            type="button"
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800"
+          <Button
+            variant="filled"
+            color="dark"
             onClick={() => {
               void onUpdate();
             }}
           >
             Update
-          </button>
+          </Button>
         </div>
       </Dialog>
     </section>
