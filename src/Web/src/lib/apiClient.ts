@@ -7,6 +7,8 @@ import type {
   CreateStrategyPayload,
   CreateTradePayload,
   DailyJournal,
+  FinalizeDailyJournalScreenshotsPayload,
+  FinalizeDailyJournalScreenshotsResponse,
   GetAuditLogsParams,
   GetStrategiesParams,
   GetTradesParams,
@@ -215,6 +217,41 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
     try {
       const response = await api.post<JournalScreenshotUploadUrlResponse>(
         `/api/dailyjournals/${journalId}/screenshot/upload-url`,
+        payload,
+        {
+          headers: await authHeader(resolveToken),
+        }
+      );
+      return response.data;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+
+  async createDailyJournalTempScreenshotUploadUrl(
+    payload: CreateJournalScreenshotUploadUrlPayload
+  ): Promise<JournalScreenshotUploadUrlResponse> {
+    try {
+      const response = await api.post<JournalScreenshotUploadUrlResponse>(
+        '/api/dailyjournals/screenshot/temp-upload-url',
+        payload,
+        {
+          headers: await authHeader(resolveToken),
+        }
+      );
+      return response.data;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+
+  async finalizeDailyJournalScreenshots(
+    journalId: string,
+    payload: FinalizeDailyJournalScreenshotsPayload
+  ): Promise<FinalizeDailyJournalScreenshotsResponse> {
+    try {
+      const response = await api.post<FinalizeDailyJournalScreenshotsResponse>(
+        `/api/dailyjournals/${journalId}/screenshot/finalize`,
         payload,
         {
           headers: await authHeader(resolveToken),

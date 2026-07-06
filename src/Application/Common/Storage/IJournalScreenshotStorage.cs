@@ -6,5 +6,13 @@ public interface IJournalScreenshotStorage
         JournalScreenshotUploadRequest request,
         CancellationToken cancellationToken);
 
+    Task<JournalScreenshotUploadResult> CreateTempUploadUrlAsync(
+        JournalTempScreenshotUploadRequest request,
+        CancellationToken cancellationToken);
+
+    Task<JournalScreenshotFinalizeResult> FinalizeTempUploadAsync(
+        JournalScreenshotFinalizeRequest request,
+        CancellationToken cancellationToken);
+
     Task<string> CreateDownloadUrlAsync(string storageKey, CancellationToken cancellationToken);
 }

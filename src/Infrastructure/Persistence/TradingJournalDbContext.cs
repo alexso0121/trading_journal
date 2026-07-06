@@ -9,7 +9,6 @@ public sealed class TradingJournalDbContext(DbContextOptions<TradingJournalDbCon
     : DbContext(options), IUnitOfWork
 {
     public DbSet<DailyJournal> DailyJournals => Set<DailyJournal>();
-    public DbSet<DailyJournalScreenshot> DailyJournalScreenshots => Set<DailyJournalScreenshot>();
     public DbSet<Strategy> Strategies => Set<Strategy>();
     public DbSet<StrategyTag> StrategyTags => Set<StrategyTag>();
     public DbSet<Trade> Trades => Set<Trade>();

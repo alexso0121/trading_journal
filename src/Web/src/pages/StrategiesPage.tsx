@@ -21,12 +21,6 @@ type StrategyFormState = {
 
 const emptyForm: StrategyFormState = { name: '', description: '', tags: [], tagInput: '' };
 
-const toPlainText = (value: string) =>
-  value
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
 const normalizeTag = (value: string) => value.trim().toLowerCase();
 
 export const StrategiesPage = () => {
@@ -46,6 +40,7 @@ export const StrategiesPage = () => {
   const [createForm, setCreateForm] = useState<StrategyFormState>(emptyForm);
   const [editForm, setEditForm] = useState<StrategyFormState>(emptyForm);
   const [editing, setEditing] = useState<Strategy | null>(null);
+  const [createDraftStrategy, setCreateDraftStrategy] = useState<Strategy | null>(null);
 
   const appendTag = (form: StrategyFormState): StrategyFormState => {
     const candidate = form.tagInput.trim();
@@ -112,11 +107,24 @@ export const StrategiesPage = () => {
 
     setError(null);
     try {
-      await api.createStrategy({
-        name: createForm.name.trim(),
-        description: createForm.description.trim(),
-        tags: createForm.tags,
-      });
+      const tags = appendTag(createForm).tags;
+
+      if (createDraftStrategy) {
+        await api.updateStrategy(createDraftStrategy.id, {
+          name: createForm.name.trim(),
+          description: createForm.description.trim(),
+          tags,
+          lastKnownVersion: createDraftStrategy.version,
+        });
+      } else {
+        await api.createStrategy({
+          name: createForm.name.trim(),
+          description: createForm.description.trim(),
+          tags,
+        });
+      }
+
+      setCreateDraftStrategy(null);
       setCreateForm(emptyForm);
       setCreateOpen(false);
       setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
@@ -200,6 +208,40 @@ export const StrategiesPage = () => {
     return uploadInfo.downloadUrl;
   };
 
+  const uploadCreateStrategyEditorImage = async (file: File): Promise<string> => {
+    let draft = createDraftStrategy;
+
+    if (!draft) {
+      if (!createForm.name.trim()) {
+        throw new Error('Enter a strategy name before uploading images.');
+      }
+
+      const normalized = appendTag(createForm);
+      const created = await api.createStrategy({
+        name: normalized.name.trim(),
+        description: normalized.description.trim(),
+        tags: normalized.tags,
+      });
+
+      setCreateForm((prev) => ({
+        ...prev,
+        tags: normalized.tags,
+        tagInput: '',
+      }));
+
+      setCreateDraftStrategy(created);
+      draft = created;
+    }
+
+    const uploadInfo = await api.createStrategyContentImageUploadUrl(draft.id, {
+      fileName: file.name,
+      contentType: file.type,
+    });
+
+    await api.uploadFileToPresignedUrl(uploadInfo.uploadUrl, file);
+    return uploadInfo.downloadUrl;
+  };
+
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
@@ -249,18 +291,7 @@ export const StrategiesPage = () => {
               accessor: 'name',
               title: 'Name',
             },
-            {
-              accessor: 'description',
-              title: 'Description',
-              render: (strategy) => {
-                const text = toPlainText(strategy.description);
-                if (!text) {
-                  return '-';
-                }
 
-                return text.length > 120 ? `${text.slice(0, 120)}...` : text;
-              },
-            },
             {
               accessor: 'tags',
               title: 'Tags',
@@ -280,10 +311,7 @@ export const StrategiesPage = () => {
                   </div>
                 ),
             },
-            {
-              accessor: 'version',
-              title: 'Version',
-            },
+
             {
               accessor: 'tradesCount',
               title: 'Trades',
@@ -322,6 +350,7 @@ export const StrategiesPage = () => {
         title="Create strategy"
         onClose={() => {
           setCreateOpen(false);
+          setCreateDraftStrategy(null);
           setCreateForm(emptyForm);
         }}
       >
@@ -336,6 +365,7 @@ export const StrategiesPage = () => {
           <StrategyRichTextEditor
             value={createForm.description}
             onChange={(description) => setCreateForm((prev) => ({ ...prev, description }))}
+            onImageUpload={uploadCreateStrategyEditorImage}
             placeholder="Rich text strategy notes"
           />
           <div className="space-y-2">

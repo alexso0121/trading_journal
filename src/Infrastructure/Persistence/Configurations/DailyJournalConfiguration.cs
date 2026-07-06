@@ -43,10 +43,5 @@ public sealed class DailyJournalConfiguration : IEntityTypeConfiguration<DailyJo
         builder.Property(j => j.UpdatedAtUtc)
             .HasColumnName("updated_at_utc")
             .IsRequired();
-
-        builder.HasMany(j => j.Screenshots)
-            .WithOne(s => s.DailyJournal)
-            .HasForeignKey(s => s.DailyJournalId)
-            .OnDelete(DeleteBehavior.Cascade);
     }
 }

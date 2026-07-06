@@ -26,7 +26,6 @@ public sealed class DailyJournal
     public string Note { get; private set; } = string.Empty;
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
-    public ICollection<DailyJournalScreenshot> Screenshots { get; private set; } = new List<DailyJournalScreenshot>();
 
     public static DailyJournal Create(Guid userId, DateTime journalDateUtc, string tradeIdea, string reflection)
     {

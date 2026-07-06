@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DataTable } from 'mantine-datatable';
 import 'mantine-datatable/styles.css';
+import {
+  CreateTradeDialog,
+  emptyTradeCreateForm,
+  type TradeCreateFormState,
+} from '../components/CreateTradeDialog';
 import { Dialog } from '../components/Dialog';
 import { ApiError, createApiClient } from '../lib/apiClient';
 import { useAuth } from '../providers/AuthProvider';
@@ -11,33 +16,18 @@ type PaginationState = {
   pageSize: number;
 };
 
-type TradeFormState = {
-  strategyId: string;
-  ticker: string;
-  market: string;
-  asset: number;
-  direction: number;
+type TradeFormState = TradeCreateFormState & {
   status: number;
-  entryPrice: string;
-  quantity: string;
-  pnl: string;
-  comments: string;
-  openTimeUtc: string;
   closeTimeUtc: string;
 };
 
+const emptyCreateForm: TradeCreateFormState = {
+  ...emptyTradeCreateForm,
+};
+
 const emptyForm: TradeFormState = {
-  strategyId: '',
-  ticker: '',
-  market: '',
-  asset: 1,
-  direction: 1,
+  ...emptyTradeCreateForm,
   status: 1,
-  entryPrice: '',
-  quantity: '',
-  pnl: '0',
-  comments: '',
-  openTimeUtc: '',
   closeTimeUtc: '',
 };
 
@@ -65,7 +55,7 @@ export const TradesPage = () => {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [createForm, setCreateForm] = useState<TradeFormState>(emptyForm);
+  const [createForm, setCreateForm] = useState<TradeCreateFormState>(emptyCreateForm);
   const [editForm, setEditForm] = useState<TradeFormState>(emptyForm);
   const [editing, setEditing] = useState<Trade | null>(null);
 
@@ -147,7 +137,7 @@ export const TradesPage = () => {
       });
       setCreateOpen(false);
       setCreateForm((prev) => ({
-        ...emptyForm,
+        ...emptyTradeCreateForm,
         strategyId: prev.strategyId,
       }));
       setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
@@ -415,108 +405,22 @@ export const TradesPage = () => {
         />
       </div>
 
-      <Dialog
+      <CreateTradeDialog
         open={createOpen}
         title="Create trade"
+        strategies={strategies}
+        form={createForm}
+        creating={false}
+        onChange={(updater) => {
+          setCreateForm((prev) => updater(prev));
+        }}
         onClose={() => {
           setCreateOpen(false);
         }}
-      >
-        <div className="grid gap-2 md:grid-cols-2">
-          <select
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            value={createForm.strategyId}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, strategyId: e.target.value }))}
-          >
-            <option value="">Select strategy</option>
-            {strategies.map((strategy) => (
-              <option key={strategy.id} value={strategy.id}>
-                {strategy.name}
-              </option>
-            ))}
-          </select>
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            placeholder="Ticker"
-            value={createForm.ticker}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, ticker: e.target.value }))}
-          />
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            placeholder="Market"
-            value={createForm.market}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, market: e.target.value }))}
-          />
-          <select
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            value={createForm.asset}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, asset: Number(e.target.value) }))}
-          >
-            <option value={1}>Stock</option>
-            <option value={2}>Future</option>
-            <option value={3}>Contract</option>
-            <option value={4}>Crypto</option>
-            <option value={5}>Forex</option>
-          </select>
-          <select
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            value={createForm.direction}
-            onChange={(e) =>
-              setCreateForm((prev) => ({ ...prev, direction: Number(e.target.value) }))
-            }
-          >
-            <option value={1}>Long</option>
-            <option value={2}>Short</option>
-          </select>
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            type="number"
-            step="0.000001"
-            placeholder="Entry price"
-            value={createForm.entryPrice}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, entryPrice: e.target.value }))}
-          />
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            type="number"
-            step="0.000001"
-            placeholder="Quantity"
-            value={createForm.quantity}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, quantity: e.target.value }))}
-          />
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            type="number"
-            step="0.000001"
-            placeholder="PnL"
-            value={createForm.pnl}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, pnl: e.target.value }))}
-          />
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            type="datetime-local"
-            value={createForm.openTimeUtc}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, openTimeUtc: e.target.value }))}
-          />
-          <textarea
-            className="md:col-span-2 rounded-md border border-slate-300 px-3 py-2 text-sm"
-            placeholder="Comments"
-            value={createForm.comments}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, comments: e.target.value }))}
-          />
-        </div>
-        <div className="mt-3">
-          <button
-            type="button"
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800"
-            onClick={() => {
-              void onCreate();
-            }}
-          >
-            Save
-          </button>
-        </div>
-      </Dialog>
+        onSave={() => {
+          void onCreate();
+        }}
+      />
 
       <Dialog
         open={editOpen}

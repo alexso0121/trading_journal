@@ -4,7 +4,14 @@ import Image from '@tiptap/extension-image';
 import { useEffect, useRef, useState } from 'react';
 
 const ToolbarIcon = ({ path }: { path: string }) => (
-  <svg viewBox="0 0 16 16" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+  <svg
+    viewBox="0 0 16 16"
+    aria-hidden="true"
+    className="h-4 w-4"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+  >
     <path d={path} strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );

@@ -9,7 +9,6 @@ public sealed record DailyJournalResponse(
     string TradeIdea,
     string Reflection,
     string Note,
-    IReadOnlyCollection<DailyJournalScreenshotResponse> Screenshots,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc)
 {
@@ -21,10 +20,6 @@ public sealed record DailyJournalResponse(
             journal.TradeIdea,
             journal.Reflection,
             journal.Note,
-            journal.Screenshots
-                .OrderByDescending(s => s.CreatedAtUtc)
-                .Select(DailyJournalScreenshotResponse.FromEntity)
-                .ToList(),
             journal.CreatedAtUtc,
             journal.UpdatedAtUtc);
 }

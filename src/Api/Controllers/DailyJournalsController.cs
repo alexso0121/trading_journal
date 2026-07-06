@@ -88,4 +88,35 @@ public sealed class DailyJournalsController : ControllerBase
         var response = await useCase.ExecuteAsync(userId, id, request, cancellationToken);
         return response is null ? NotFound() : Ok(response);
     }
+
+    [HttpPost("screenshot/temp-upload-url")]
+    public async Task<IActionResult> CreateTempScreenshotUploadUrl(
+        [FromBody] CreateDailyJournalTempScreenshotUploadUrlRequest request,
+        [FromServices] CreateDailyJournalTempScreenshotUploadUrlUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized("Firebase token must include a GUID user id claim.");
+        }
+
+        var response = await useCase.ExecuteAsync(userId, request, cancellationToken);
+        return Ok(response);
+    }
+
+    [HttpPost("{id:guid}/screenshot/finalize")]
+    public async Task<IActionResult> FinalizeScreenshots(
+        Guid id,
+        [FromBody] FinalizeDailyJournalScreenshotsRequest request,
+        [FromServices] FinalizeDailyJournalScreenshotsUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized("Firebase token must include a GUID user id claim.");
+        }
+
+        var response = await useCase.ExecuteAsync(userId, id, request, cancellationToken);
+        return response is null ? NotFound() : Ok(response);
+    }
 }

@@ -27,7 +27,7 @@ public sealed class StrategiesController : ControllerBase
             return Unauthorized("Firebase token must include a GUID user id claim.");
         }
 
-        var createdStrategy = await useCase.ExecuteAsync(request,userId, cancellationToken);
+        var createdStrategy = await useCase.ExecuteAsync(request, userId, cancellationToken);
         return CreatedAtAction(nameof(GetStrategyById), new { id = createdStrategy.Id }, createdStrategy);
     }
 

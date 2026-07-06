@@ -9,6 +9,8 @@ public sealed class StubJournalScreenshotStorage(
     IAmazonS3 s3Client,
     IOptions<S3ScreenshotStorageOptions> optionsAccessor) : IJournalScreenshotStorage
 {
+    private const string TempPrefix = "tmp";
+
     private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "image/png",
@@ -34,6 +36,67 @@ public sealed class StubJournalScreenshotStorage(
         }
 
         var storageKey = BuildStorageKey(request);
+        return CreateUploadUrlInternal(storageKey, request.ContentType);
+    }
+
+    public Task<JournalScreenshotUploadResult> CreateTempUploadUrlAsync(
+        JournalTempScreenshotUploadRequest request,
+        CancellationToken cancellationToken)
+    {
+        ValidateCommon(request.ContentType);
+
+        var storageKey = BuildTempStorageKey(request);
+        return CreateUploadUrlInternal(storageKey, request.ContentType);
+    }
+
+    public async Task<JournalScreenshotFinalizeResult> FinalizeTempUploadAsync(
+        JournalScreenshotFinalizeRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.TempStorageKey))
+        {
+            throw new ArgumentException("TempStorageKey is required.", nameof(request));
+        }
+
+        var expectedTempPrefix = BuildExpectedTempPrefix(request.UserId);
+        if (!request.TempStorageKey.StartsWith(expectedTempPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Invalid temp screenshot key.");
+        }
+
+        var finalStorageKey = BuildFinalStorageKeyFromTemp(request.UserId, request.DailyJournalId, request.TempStorageKey);
+
+        var copyRequest = new CopyObjectRequest
+        {
+            SourceBucket = options.BucketName,
+            SourceKey = request.TempStorageKey,
+            DestinationBucket = options.BucketName,
+            DestinationKey = finalStorageKey,
+        };
+
+        await s3Client.CopyObjectAsync(copyRequest, cancellationToken);
+
+        var deleteRequest = new DeleteObjectRequest
+        {
+            BucketName = options.BucketName,
+            Key = request.TempStorageKey,
+        };
+
+        await s3Client.DeleteObjectAsync(deleteRequest, cancellationToken);
+
+        var downloadExpiryMinutes = Math.Clamp(options.DownloadUrlExpiryMinutes, 1, 1440);
+        var expiresAt = DateTime.UtcNow.AddMinutes(downloadExpiryMinutes);
+        var downloadUrl = CreateDownloadUrlInternal(finalStorageKey, downloadExpiryMinutes);
+
+        return new JournalScreenshotFinalizeResult(
+            request.TempStorageKey,
+            finalStorageKey,
+            downloadUrl,
+            expiresAt);
+    }
+
+    private Task<JournalScreenshotUploadResult> CreateUploadUrlInternal(string storageKey, string contentType)
+    {
         var uploadExpiryMinutes = Math.Clamp(options.UploadUrlExpiryMinutes, 1, 60);
         var downloadExpiryMinutes = Math.Clamp(options.DownloadUrlExpiryMinutes, 1, 1440);
         var expiresAt = DateTime.UtcNow.AddMinutes(uploadExpiryMinutes);
@@ -44,7 +107,7 @@ public sealed class StubJournalScreenshotStorage(
             Key = storageKey,
             Verb = HttpVerb.PUT,
             Expires = expiresAt,
-            ContentType = request.ContentType,
+            ContentType = contentType,
             Protocol = Protocol.HTTPS,
         };
 
@@ -53,6 +116,19 @@ public sealed class StubJournalScreenshotStorage(
         var downloadUrl = CreateDownloadUrlInternal(storageKey, downloadExpiryMinutes);
 
         return Task.FromResult(new JournalScreenshotUploadResult(storageKey, uploadUrl, downloadUrl, expiresAt));
+    }
+
+    private void ValidateCommon(string contentType)
+    {
+        if (string.IsNullOrWhiteSpace(options.BucketName))
+        {
+            throw new InvalidOperationException("Storage:S3:BucketName is required.");
+        }
+
+        if (!AllowedContentTypes.Contains(contentType))
+        {
+            throw new InvalidOperationException("Unsupported screenshot content type.");
+        }
     }
 
     public Task<string> CreateDownloadUrlAsync(string storageKey, CancellationToken cancellationToken)
@@ -82,10 +158,38 @@ public sealed class StubJournalScreenshotStorage(
 
     private string BuildStorageKey(JournalScreenshotUploadRequest request)
     {
-        var extension = Path.GetExtension(request.FileName)?.Trim().ToLowerInvariant();
+        var extension = ResolveExtension(request.FileName, request.ContentType);
+        return BuildFinalStorageKey(request.UserId, request.DailyJournalId, extension);
+    }
+
+    private string BuildTempStorageKey(JournalTempScreenshotUploadRequest request)
+    {
+        var extension = ResolveExtension(request.FileName, request.ContentType);
+        var prefix = BuildExpectedTempPrefix(request.UserId);
+        return $"{prefix}/{Guid.NewGuid():N}{extension}";
+    }
+
+    private string BuildFinalStorageKeyFromTemp(Guid userId, Guid dailyJournalId, string tempStorageKey)
+    {
+        var extension = Path.GetExtension(tempStorageKey);
+        return BuildFinalStorageKey(userId, dailyJournalId, extension);
+    }
+
+    private string BuildFinalStorageKey(Guid userId, Guid dailyJournalId, string extension)
+    {
+        var prefix = string.IsNullOrWhiteSpace(options.KeyPrefix)
+            ? "journals"
+            : options.KeyPrefix.Trim().Trim('/');
+
+        return $"{prefix}/{userId}/{dailyJournalId}/{Guid.NewGuid():N}{extension}";
+    }
+
+    private static string ResolveExtension(string fileName, string contentType)
+    {
+        var extension = Path.GetExtension(fileName)?.Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(extension))
         {
-            extension = request.ContentType switch
+            extension = contentType switch
             {
                 "image/png" => ".png",
                 "image/jpeg" => ".jpg",
@@ -95,10 +199,11 @@ public sealed class StubJournalScreenshotStorage(
             };
         }
 
-        var prefix = string.IsNullOrWhiteSpace(options.KeyPrefix)
-            ? "journals"
-            : options.KeyPrefix.Trim().Trim('/');
+        return extension;
+    }
 
-        return $"{prefix}/{request.UserId}/{request.DailyJournalId}/{Guid.NewGuid():N}{extension}";
+    private static string BuildExpectedTempPrefix(Guid userId)
+    {
+        return $"{TempPrefix}/journals/{userId}";
     }
 }

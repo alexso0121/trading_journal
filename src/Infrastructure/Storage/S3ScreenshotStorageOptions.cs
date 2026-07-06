@@ -5,6 +5,11 @@ public sealed class S3ScreenshotStorageOptions
     public const string SectionName = "Storage:S3";
 
     public string BucketName { get; init; } = string.Empty;
+    public string? ServiceUrl { get; init; }
+    public string? AccessKeyId { get; init; }
+    public string? SecretAccessKey { get; init; }
+    public string AuthenticationRegion { get; init; } = "auto";
+    public bool ForcePathStyle { get; init; } = true;
     public string? PublicBaseUrl { get; init; }
     public int UploadUrlExpiryMinutes { get; init; } = 15;
     public int DownloadUrlExpiryMinutes { get; init; } = 60;

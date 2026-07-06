@@ -1,9 +1,14 @@
 import { format, parse, startOfWeek, getDay, endOfMonth, startOfMonth } from 'date-fns';
 import { enUS } from 'date-fns/locale/en-US';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button, Group, Table } from '@mantine/core';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
+import {
+  CreateTradeDialog,
+  emptyTradeCreateForm,
+  type TradeCreateFormState,
+} from '../components/CreateTradeDialog';
 import { Dialog } from '../components/Dialog';
 import { StrategyRichTextEditor } from '../components/StrategyRichTextEditor';
 import { createApiClient } from '../lib/apiClient';
@@ -40,6 +45,26 @@ const toDayKey = (date: Date) => {
 const toJournalIso = (date: Date) =>
   new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())).toISOString();
 
+const replaceUrls = (value: string, mapping: Map<string, string>) => {
+  let result = value;
+  for (const [from, to] of mapping.entries()) {
+    if (!from || from === to) {
+      continue;
+    }
+
+    result = result.split(from).join(to);
+  }
+
+  return result;
+};
+
+const hasRichTextContent = (value: string) =>
+  value
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, '')
+    .length > 0;
+
 const toDateTimeLocal = (date: Date) => {
   const timezoneOffset = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
@@ -69,32 +94,6 @@ const normalizeCalendarRange = (
   };
 };
 
-type TradeCreateFormState = {
-  strategyId: string;
-  ticker: string;
-  market: string;
-  asset: number;
-  direction: number;
-  entryPrice: string;
-  quantity: string;
-  pnl: string;
-  comments: string;
-  openTimeUtc: string;
-};
-
-const emptyTradeCreateForm: TradeCreateFormState = {
-  strategyId: '',
-  ticker: '',
-  market: '',
-  asset: 1,
-  direction: 1,
-  entryPrice: '',
-  quantity: '',
-  pnl: '0',
-  comments: '',
-  openTimeUtc: '',
-};
-
 export const TradeCalendarPage = () => {
   const { getToken } = useAuth();
   const api = useMemo(() => createApiClient(getToken), [getToken]);
@@ -121,6 +120,9 @@ export const TradeCalendarPage = () => {
   const [journalTradeIdea, setJournalTradeIdea] = useState('');
   const [journalReflection, setJournalReflection] = useState('');
   const [saving, setSaving] = useState(false);
+  const suppressNextSlotSelectionRef = useRef(false);
+  const tempImageUrlByStorageKeyRef = useRef<Map<string, string>>(new Map());
+  const [pendingTempStorageKeys, setPendingTempStorageKeys] = useState<string[]>([]);
 
   const loadCalendarTrades = async (rangeStart: Date, rangeEnd: Date) => {
     setLoadingCalendarTrades(true);
@@ -223,6 +225,8 @@ export const TradeCalendarPage = () => {
   useEffect(() => {
     setJournalTradeIdea(existingJournal?.tradeIdea ?? existingJournal?.note ?? '');
     setJournalReflection(existingJournal?.reflection ?? '');
+    tempImageUrlByStorageKeyRef.current.clear();
+    setPendingTempStorageKeys([]);
   }, [existingJournal]);
 
   const openDayDialog = (date: Date) => {
@@ -289,22 +293,72 @@ export const TradeCalendarPage = () => {
   };
 
   const saveJournal = async () => {
+    if (!hasRichTextContent(journalTradeIdea) && !hasRichTextContent(journalReflection)) {
+      setError('TradeIdea or Reflection is required.');
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
-      const payload = {
+      const basePayload = {
         journalDateUtc: toJournalIso(selectedDate),
         tradeIdea: journalTradeIdea,
         reflection: journalReflection,
       };
 
+      let journal: DailyJournal;
+
       if (existingJournal) {
-        const updated = await api.updateDailyJournal(existingJournal.id, payload);
-        setJournals((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+        journal = await api.updateDailyJournal(existingJournal.id, basePayload);
       } else {
-        const created = await api.createDailyJournal(payload);
-        setJournals((prev) => [created, ...prev]);
+        journal = await api.createDailyJournal(basePayload);
       }
+
+      let finalJournal = journal;
+
+      if (pendingTempStorageKeys.length > 0) {
+        const finalizeResponse = await api.finalizeDailyJournalScreenshots(journal.id, {
+          storageKeys: pendingTempStorageKeys,
+        });
+
+        const urlMapping = new Map<string, string>();
+        for (const item of finalizeResponse.items) {
+          const tempUrl = tempImageUrlByStorageKeyRef.current.get(item.tempStorageKey);
+          if (tempUrl) {
+            urlMapping.set(tempUrl, item.downloadUrl);
+          }
+        }
+
+        if (urlMapping.size > 0) {
+          const finalizedTradeIdea = replaceUrls(basePayload.tradeIdea, urlMapping);
+          const finalizedReflection = replaceUrls(basePayload.reflection, urlMapping);
+
+          finalJournal = await api.updateDailyJournal(journal.id, {
+            journalDateUtc: basePayload.journalDateUtc,
+            tradeIdea: finalizedTradeIdea,
+            reflection: finalizedReflection,
+          });
+
+          setJournalTradeIdea(finalizedTradeIdea);
+          setJournalReflection(finalizedReflection);
+        }
+
+        setPendingTempStorageKeys([]);
+        tempImageUrlByStorageKeyRef.current.clear();
+      }
+
+      setJournals((prev) => {
+        const index = prev.findIndex((item) => item.id === finalJournal.id);
+        if (index >= 0) {
+          var next = [...prev];
+          next[index] = finalJournal;
+          return next;
+        }
+
+        return [finalJournal, ...prev];
+      });
+
       setDialogOpen(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save daily journal.');
@@ -314,26 +368,21 @@ export const TradeCalendarPage = () => {
   };
 
   const uploadEditorImage = async (file: File): Promise<string> => {
-    let journalId = existingJournal?.id;
-
-    if (!journalId) {
-      const created = await api.createDailyJournal({
-        journalDateUtc: toJournalIso(selectedDate),
-        tradeIdea: journalTradeIdea,
-        reflection: journalReflection,
-      });
-
-      setJournals((prev) => [created, ...prev]);
-      journalId = created.id;
-    }
-
-    const uploadInfo = await api.createDailyJournalScreenshotUploadUrl(journalId, {
+    const uploadInfo = await api.createDailyJournalTempScreenshotUploadUrl({
       fileName: file.name,
       contentType: file.type,
     });
 
     await api.uploadFileToPresignedUrl(uploadInfo.uploadUrl, file);
-    await loadJournals();
+    tempImageUrlByStorageKeyRef.current.set(uploadInfo.storageKey, uploadInfo.downloadUrl);
+    setPendingTempStorageKeys((prev) => {
+      if (prev.includes(uploadInfo.storageKey)) {
+        return prev;
+      }
+
+      return [...prev, uploadInfo.storageKey];
+    });
+
     return uploadInfo.downloadUrl;
   };
 
@@ -368,8 +417,16 @@ export const TradeCalendarPage = () => {
           events={events}
           startAccessor="start"
           endAccessor="end"
+          views={['month']} // Only show Month
           style={{ height: 680 }}
-          onSelectSlot={(slotInfo) => openDayDialog(slotInfo.start)}
+          onSelectSlot={(slotInfo) => {
+            if (suppressNextSlotSelectionRef.current) {
+              suppressNextSlotSelectionRef.current = false;
+              return;
+            }
+
+            openDayDialog(slotInfo.start);
+          }}
           onSelectEvent={(event) => openDayDialog((event as CalendarTradeEvent).start)}
           selectable
           components={{
@@ -387,7 +444,10 @@ export const TradeCalendarPage = () => {
                     type="button"
                     className="rounded border border-slate-300 px-1 text-[10px] leading-4 text-slate-700 hover:bg-slate-100"
                     onClick={(event) => {
+                      event.preventDefault();
                       event.stopPropagation();
+                      suppressNextSlotSelectionRef.current = true;
+
                       openCreateTradeDialog(date);
                     }}
                     title="Create trade"
@@ -411,117 +471,22 @@ export const TradeCalendarPage = () => {
         />
       </div>
 
-      <Dialog
+      <CreateTradeDialog
         open={createTradeOpen}
         title={`Create trade - ${selectedDate.toLocaleDateString()}`}
+        strategies={strategies}
+        form={createTradeForm}
+        creating={creatingTrade}
+        onChange={(updater) => {
+          setCreateTradeForm((prev) => updater(prev));
+        }}
         onClose={() => {
           setCreateTradeOpen(false);
         }}
-      >
-        <div className="grid gap-2 md:grid-cols-2">
-          <select
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            value={createTradeForm.strategyId}
-            onChange={(e) =>
-              setCreateTradeForm((prev) => ({ ...prev, strategyId: e.target.value }))
-            }
-          >
-            <option value="">Select strategy</option>
-            {strategies.map((strategy) => (
-              <option key={strategy.id} value={strategy.id}>
-                {strategy.name}
-              </option>
-            ))}
-          </select>
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            placeholder="Ticker"
-            value={createTradeForm.ticker}
-            onChange={(e) => setCreateTradeForm((prev) => ({ ...prev, ticker: e.target.value }))}
-          />
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            placeholder="Market"
-            value={createTradeForm.market}
-            onChange={(e) => setCreateTradeForm((prev) => ({ ...prev, market: e.target.value }))}
-          />
-          <select
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            value={createTradeForm.asset}
-            onChange={(e) =>
-              setCreateTradeForm((prev) => ({ ...prev, asset: Number(e.target.value) }))
-            }
-          >
-            <option value={1}>Stock</option>
-            <option value={2}>Future</option>
-            <option value={3}>Contract</option>
-            <option value={4}>Crypto</option>
-            <option value={5}>Forex</option>
-          </select>
-          <select
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            value={createTradeForm.direction}
-            onChange={(e) =>
-              setCreateTradeForm((prev) => ({ ...prev, direction: Number(e.target.value) }))
-            }
-          >
-            <option value={1}>Long</option>
-            <option value={2}>Short</option>
-          </select>
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            type="number"
-            step="0.000001"
-            placeholder="Entry price"
-            value={createTradeForm.entryPrice}
-            onChange={(e) =>
-              setCreateTradeForm((prev) => ({ ...prev, entryPrice: e.target.value }))
-            }
-          />
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            type="number"
-            step="0.000001"
-            placeholder="Quantity"
-            value={createTradeForm.quantity}
-            onChange={(e) => setCreateTradeForm((prev) => ({ ...prev, quantity: e.target.value }))}
-          />
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            type="number"
-            step="0.000001"
-            placeholder="PnL"
-            value={createTradeForm.pnl}
-            onChange={(e) => setCreateTradeForm((prev) => ({ ...prev, pnl: e.target.value }))}
-          />
-          <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-            type="datetime-local"
-            value={createTradeForm.openTimeUtc}
-            onChange={(e) =>
-              setCreateTradeForm((prev) => ({ ...prev, openTimeUtc: e.target.value }))
-            }
-          />
-          <textarea
-            className="md:col-span-2 rounded-md border border-slate-300 px-3 py-2 text-sm"
-            placeholder="Comments"
-            value={createTradeForm.comments}
-            onChange={(e) => setCreateTradeForm((prev) => ({ ...prev, comments: e.target.value }))}
-          />
-        </div>
-        <div className="mt-3">
-          <button
-            type="button"
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800 disabled:opacity-50"
-            onClick={() => {
-              void createTrade();
-            }}
-            disabled={creatingTrade}
-          >
-            {creatingTrade ? 'Saving...' : 'Save'}
-          </button>
-        </div>
-      </Dialog>
+        onSave={() => {
+          void createTrade();
+        }}
+      />
 
       <Dialog
         open={dialogOpen}

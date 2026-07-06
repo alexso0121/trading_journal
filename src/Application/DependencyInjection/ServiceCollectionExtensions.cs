@@ -27,6 +27,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<DeleteTradeUseCase>();
         services.AddScoped<CreateDailyJournalUseCase>();
         services.AddScoped<CreateDailyJournalScreenshotUploadUrlUseCase>();
+        services.AddScoped<CreateDailyJournalTempScreenshotUploadUrlUseCase>();
+        services.AddScoped<FinalizeDailyJournalScreenshotsUseCase>();
         services.AddScoped<GetDailyJournalsUseCase>();
         services.AddScoped<GetDailyJournalByIdUseCase>();
         services.AddScoped<UpdateDailyJournalUseCase>();

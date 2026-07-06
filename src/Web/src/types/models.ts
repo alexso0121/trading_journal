@@ -52,19 +52,8 @@ export type DailyJournal = {
   tradeIdea: string;
   reflection: string;
   note: string;
-  screenshots: DailyJournalScreenshot[];
   createdAtUtc: string;
   updatedAtUtc: string;
-};
-
-export type DailyJournalScreenshot = {
-  id: string;
-  storageKey: string;
-  fileName: string;
-  contentType: string;
-  downloadUrl: string;
-  expiresAtUtc: string;
-  createdAtUtc: string;
 };
 
 export type AuditLog = {
@@ -160,11 +149,26 @@ export type CreateJournalScreenshotUploadUrlPayload = {
   contentType: string;
 };
 
+export type FinalizeDailyJournalScreenshotsPayload = {
+  storageKeys: string[];
+};
+
 export type JournalScreenshotUploadUrlResponse = {
   storageKey: string;
   uploadUrl: string;
   downloadUrl: string;
   expiresAtUtc: string;
+};
+
+export type FinalizedDailyJournalScreenshotItem = {
+  tempStorageKey: string;
+  storageKey: string;
+  downloadUrl: string;
+  expiresAtUtc: string;
+};
+
+export type FinalizeDailyJournalScreenshotsResponse = {
+  items: FinalizedDailyJournalScreenshotItem[];
 };
 
 export type CreateStrategyContentImageUploadUrlPayload = {

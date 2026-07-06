@@ -1,16 +1,13 @@
 using trading_journel_app.Application.Common.Storage;
-using trading_journel_app.Application.Repositories;
 
 namespace trading_journel_app.Application.Features.DailyJournals.Screenshots;
 
-public sealed class CreateDailyJournalScreenshotUploadUrlUseCase(
-    IDailyJournalRepository dailyJournalRepository,
+public sealed class CreateDailyJournalTempScreenshotUploadUrlUseCase(
     IJournalScreenshotStorage journalScreenshotStorage)
 {
-    public async Task<CreateDailyJournalScreenshotUploadUrlResponse?> ExecuteAsync(
+    public async Task<CreateDailyJournalTempScreenshotUploadUrlResponse> ExecuteAsync(
         Guid userId,
-        Guid dailyJournalId,
-        CreateDailyJournalScreenshotUploadUrlRequest request,
+        CreateDailyJournalTempScreenshotUploadUrlRequest request,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.FileName))
@@ -23,21 +20,14 @@ public sealed class CreateDailyJournalScreenshotUploadUrlUseCase(
             throw new ArgumentException("ContentType is required.", nameof(request));
         }
 
-        var journal = await dailyJournalRepository.GetByIdAsync(dailyJournalId, cancellationToken);
-        if (journal is null || journal.UserId != userId)
-        {
-            return null;
-        }
-
-        var uploadResult = await journalScreenshotStorage.CreateUploadUrlAsync(
-            new JournalScreenshotUploadRequest(
+        var uploadResult = await journalScreenshotStorage.CreateTempUploadUrlAsync(
+            new JournalTempScreenshotUploadRequest(
                 userId,
-                dailyJournalId,
                 request.FileName,
                 request.ContentType),
             cancellationToken);
 
-        return new CreateDailyJournalScreenshotUploadUrlResponse(
+        return new CreateDailyJournalTempScreenshotUploadUrlResponse(
             uploadResult.StorageKey,
             uploadResult.UploadUrl,
             uploadResult.DownloadUrl,

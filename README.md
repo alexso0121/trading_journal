@@ -1,134 +1,113 @@
 # Trading Journal App
 
-Backend API for a trading journal system where authenticated users can manage strategies, trades, and daily notes with auditability and concurrency safety.
+A full-stack **trading journal application** built with **Clean Architecture**, designed to help traders track strategies, trades, daily notes, and performance with strong emphasis on **auditability**, **data integrity**, and **concurrent safety**.
 
+## Project Highlights
 
-**What problems it solves:**
-1. Keeps each user's trading activity organized (strategies, trades, daily journals).
-2. Prevents silent overwrite issues during concurrent updates (`Version` + `lastKnownVersion` checks).
-3. Improves traceability with automatic audit logs on create/update/delete operations.
+- **Clean Architecture** with clear separation of concerns
+- **Firebase Authentication** + custom token validation
+- **Optimistic Concurrency Control** using Entity Framework Core row versioning
+- **Comprehensive Audit Trail** for all CRUD operations
+- **Integration Tests** with **TestContainers** + PostgreSQL
+- **Cloudflare R2** for image storage (screenshots & charts)
+- **React + TypeScript** frontend with modern UI
+- **EF Core Code-First** with PostgreSQL migrations
 
-## Architecture overview
+---
 
-The codebase follows a clean/layered style:
+## Architecture Overview
 
-- **Api layer (`src\Api`)**: HTTP controllers, request/response wiring, auth gates.
-- **Application layer (`src\Application`)**: use cases, validators, orchestration, repository contracts.
-- **Domain layer (`src\Domain`)**: core entities and domain invariants.
-- **Infrastructure layer (`src\Infrastructure`)**: EF Core DbContext, repository implementations, authentication handler, persistence configuration.
+The backend follows **Clean Architecture** (also known as Onion Architecture), ensuring:
 
-### Request flow
+- **Independence** of the Domain layer from frameworks and infrastructure
+- **Testability** and maintainability
+- **Clear boundaries** between concerns
 
-`Controller` -> `UseCase` -> `Repository interface` -> `Repository implementation` -> `EF Core DbContext` -> `PostgreSQL`
+### Layer Structure
 
-### Project structure
+| Layer              | Responsibility                                      | Key Technologies          |
+| ------------------ | --------------------------------------------------- | ------------------------- |
+| **Api**            | HTTP layer, controllers, middleware, OpenAPI        | ASP.NET Core, Swagger     |
+| **Application**    | Business logic, use cases, validation, DTOs         | MediatR, FluentValidation |
+| **Domain**         | Core business entities, value objects, domain rules | Pure C#                   |
+| **Infrastructure** | Data access, external services, persistence         | EF Core, Firebase, R2     |
+
+**Request Flow:**
+Controller → Command/Query → Handler (Use Case) → Repository (Interface) → Repository Impl → EF Core → PostgreSQL
+text---
+
+## Core Technical Features
+
+- **Authentication**: Firebase Auth (JWT Bearer) with custom claims mapping
+- **Concurrency Control**: Optimistic concurrency using `RowVersion` + `lastKnownVersion` checks (returns 409 Conflict on conflict)
+- **Audit Trail**: Automatic logging of all entity changes (CreatedBy, CreatedAt, LastModifiedBy, LastModifiedAt, Original Values)
+- **Storage**: Cloudflare R2 for trade screenshots and chart images with presigned URLs
+- **Testing**:
+  - Unit tests
+  - Integration tests using **TestContainers** (real PostgreSQL containers)
+- **Database**: PostgreSQL with EF Core migrations and many-to-many relationships
+- **Frontend**: React + TypeScript + modern component architecture
+
+---
+
+## Tech Stack
+
+**Backend**
+
+- .NET 8 / ASP.NET Core Web API
+- Entity Framework Core + Npgsql
+- Clean Architecture
+- Firebase Admin SDK
+- FluentValidation + MediatR
+- TestContainers
+
+**Frontend**
+
+- React 18 + TypeScript
+- React Calendar / React Big Calendar
+- Tailwind CSS
+- Tiptap (Rich Text Editor with image support)
+
+**Infrastructure**
+
+- PostgreSQL
+- Cloudflare R2 (Object Storage)
+- Docker-ready
+
+---
+
+## Project Structure
 
 ```text
-src
-├─ Api
-│  ├─ Controllers
-│  └─ Authentication
-├─ Application
-│  ├─ Features
-│  ├─ DependencyInjection
-│  └─ Repositories
-├─ Domain
-│  ├─ Entities
-│  └─ Enums
-├─ Infrastructure
-│  ├─ Authentication
-│  ├─ DependencyInjection
-│  ├─ Persistence
-│  └─ Repositories
-├─ Program.cs
-└─ appsettings*.json
-```
+src/
+├── Api/                    # Controllers, Middleware, Filters
+├── Application/            # Use Cases, DTOs, Validators, Interfaces
+├── Domain/                 # Entities, Enums, Domain Events, Exceptions
+├── Infrastructure/         # EF Core, Repositories, Firebase, R2 Service
+└── Web/                    # React + TypeScript Frontend
 
-## Core design decisions
+Local Development Setup
+Backend
 
-- **Authentication**: custom Firebase authentication handler validates bearer tokens and builds user claims.
-- **User mapping**: if token claim is not a GUID, backend creates a stable GUID from Firebase UID.
-- **Concurrency control**: trade and strategy update/delete flows return `409 Conflict` when versions mismatch.
-- **Audit logging**: `AuditLogInterceptor` captures added/updated/deleted entity payloads during `SaveChanges`.
-- **Domain integrity**: entities enforce invariants (required fields, value bounds, lifecycle rules).
+Update appsettings.Development.json with your PostgreSQL connection string and Firebase settings.
+Apply database migrations:
 
-## Tech stack
+Bashdotnet ef database update --project src/trading_journel_app
 
-- .NET 10
-- ASP.NET Core Web API
-- Entity Framework Core (Npgsql provider)
-- PostgreSQL
-- Firebase Admin SDK (token verification)
-- FluentValidation
-- Swagger/OpenAPI
+Run the API:
 
-## Configuration
-
-The backend reads values from:
-
-- `src\appsettings.json`
-- `src\appsettings.Development.json`
-
-Required sections:
-
-```json
-{
-  "ConnectionStrings": {
-    "TradingJournalDb": "Host=localhost;Port=5432;Database=users;Username=app_user;Password=12345678"
-  },
-  "Firebase": {
-    "ProjectId": "your-firebase-project-id",
-    "CredentialsPath": "C:\\path\\to\\firebase-service-account.json"
-  }
-}
-```
-
-## Local setup
-
-1. Create a PostgreSQL database (example: `users`).
-2. Set `ConnectionStrings:TradingJournalDb`.
-3. Set Firebase `ProjectId` and `CredentialsPath`.
-4. Apply migrations:
-
-```bash
-dotnet ef database update --project src\trading_journel_app.csproj
-```
-
-5. Run the API:
-
-```bash
-dotnet run --project src\trading_journel_app.csproj
-```
-
-Swagger is available at `/swagger` in Development.
-
-## Frontend (React)
-
-Frontend path: `src\Web`
-
-1. Copy `src\Web\.env.example` to `src\Web\.env`.
-2. Set Firebase web config values.
-3. Set `VITE_API_BASE_URL` (default `http://localhost:5116`).
-4. Start frontend:
-
-```bash
-cd src\Web
+Bashdotnet run --project src/trading_journel_app
+Frontend
+Bashcd src/Web
+cp .env.example .env
 npm install
 npm run dev
+
+Key Design Decisions
+
+Optimistic Concurrency: Prevents silent data loss during concurrent edits
+Auditability: Every change is tracked for compliance and debugging
+Image Handling: Screenshots stored in R2 with clean URL generation
+Many-to-Many Relationships: Between Strategies and Trades
+Rich Journaling: Tiptap editor with image upload support
 ```
-
-## API surface
-
-- **Trades**: `POST/GET/GET by id/PUT/DELETE`
-  - `DELETE /api/trades/{id}?lastKnownVersion=...`
-- **Strategies**: `POST/GET/GET by id/PUT/DELETE`
-  - `DELETE /api/strategies/{id}?lastKnownVersion=...`
-- **Daily Journals**: `POST/GET/GET by id/PUT/DELETE`
-
-All endpoints are protected with bearer auth.
-
-## Business rules and notes
-
-- Strategy deletion is blocked while related trades exist.
-- Use `Authorization: Bearer <firebase-id-token>`.
-- Swagger only in development mode.
