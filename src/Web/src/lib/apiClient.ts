@@ -1,10 +1,11 @@
-import axios, { type AxiosError } from 'axios'
+import axios, { type AxiosError } from 'axios';
 import type {
   AuditLog,
   CreateDailyJournalPayload,
   CreateStrategyPayload,
   CreateTradePayload,
   DailyJournal,
+  GetAuditLogsParams,
   GetStrategiesParams,
   GetTradesParams,
   PagedResponse,
@@ -13,36 +14,58 @@ import type {
   UpdateDailyJournalPayload,
   UpdateStrategyPayload,
   UpdateTradePayload,
-} from '../types/models'
+} from '../types/models';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5116',
-})
+});
 
 export class ApiError extends Error {
-  readonly status: number
+  readonly status: number;
 
   constructor(message: string, status: number) {
-    super(message)
-    this.status = status
+    super(message);
+    this.status = status;
   }
 }
 
 const toApiError = (error: unknown): ApiError => {
-  const axiosError = error as AxiosError<{ message?: string }>
-  const status = axiosError.response?.status ?? 500
+  const axiosError = error as AxiosError<{ message?: string }>;
+  const status = axiosError.response?.status ?? 500;
   const message =
     axiosError.response?.data?.message ??
-    (typeof axiosError.response?.data === 'string' ? axiosError.response.data : axiosError.message) ??
-    'Request failed.'
-  return new ApiError(message, status)
-}
+    (typeof axiosError.response?.data === 'string'
+      ? axiosError.response.data
+      : axiosError.message) ??
+    'Request failed.';
+  return new ApiError(message, status);
+};
 
-type TokenResolver = () => Promise<string>
+const toPagedResponse = <T>(value: unknown): PagedResponse<T> => {
+  const data = (value ?? {}) as {
+    items?: T[];
+    Items?: T[];
+    pageNumber?: number;
+    PageNumber?: number;
+    pageSize?: number;
+    PageSize?: number;
+    totalCount?: number;
+    TotalCount?: number;
+  };
+
+  return {
+    items: data.items ?? data.Items ?? [],
+    pageNumber: data.pageNumber ?? data.PageNumber ?? 1,
+    pageSize: data.pageSize ?? data.PageSize ?? 20,
+    totalCount: data.totalCount ?? data.TotalCount ?? 0,
+  };
+};
+
+type TokenResolver = () => Promise<string>;
 
 const authHeader = async (resolveToken: TokenResolver) => ({
   Authorization: `Bearer ${await resolveToken()}`,
-})
+});
 
 export const createApiClient = (resolveToken: TokenResolver) => ({
   async getStrategies(params: GetStrategiesParams = {}): Promise<PagedResponse<Strategy>> {
@@ -53,10 +76,10 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
           pageNumber: params.pageNumber ?? 1,
           pageSize: params.pageSize ?? 20,
         },
-      })
-      return response.data
+      });
+      return toPagedResponse<Strategy>(response.data);
     } catch (error) {
-      throw toApiError(error)
+      throw toApiError(error);
     }
   },
 
@@ -64,10 +87,10 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
     try {
       const response = await api.post<Strategy>('/api/strategies', payload, {
         headers: await authHeader(resolveToken),
-      })
-      return response.data
+      });
+      return response.data;
     } catch (error) {
-      throw toApiError(error)
+      throw toApiError(error);
     }
   },
 
@@ -75,10 +98,10 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
     try {
       const response = await api.put<Strategy>(`/api/strategies/${strategyId}`, payload, {
         headers: await authHeader(resolveToken),
-      })
-      return response.data
+      });
+      return response.data;
     } catch (error) {
-      throw toApiError(error)
+      throw toApiError(error);
     }
   },
 
@@ -87,9 +110,9 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
       await api.delete(`/api/strategies/${strategyId}`, {
         headers: await authHeader(resolveToken),
         params: { lastKnownVersion },
-      })
+      });
     } catch (error) {
-      throw toApiError(error)
+      throw toApiError(error);
     }
   },
 
@@ -103,10 +126,10 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
           strategyId: params.strategyId || undefined,
           tradingDateUtc: params.tradingDateUtc || undefined,
         },
-      })
-      return response.data
+      });
+      return toPagedResponse<Trade>(response.data);
     } catch (error) {
-      throw toApiError(error)
+      throw toApiError(error);
     }
   },
 
@@ -114,10 +137,10 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
     try {
       const response = await api.post<Trade>('/api/trades', payload, {
         headers: await authHeader(resolveToken),
-      })
-      return response.data
+      });
+      return response.data;
     } catch (error) {
-      throw toApiError(error)
+      throw toApiError(error);
     }
   },
 
@@ -125,10 +148,10 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
     try {
       const response = await api.put<Trade>(`/api/trades/${tradeId}`, payload, {
         headers: await authHeader(resolveToken),
-      })
-      return response.data
+      });
+      return response.data;
     } catch (error) {
-      throw toApiError(error)
+      throw toApiError(error);
     }
   },
 
@@ -137,9 +160,9 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
       await api.delete(`/api/trades/${tradeId}`, {
         headers: await authHeader(resolveToken),
         params: { lastKnownVersion },
-      })
+      });
     } catch (error) {
-      throw toApiError(error)
+      throw toApiError(error);
     }
   },
 
@@ -147,10 +170,10 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
     try {
       const response = await api.get<DailyJournal[]>('/api/dailyjournals', {
         headers: await authHeader(resolveToken),
-      })
-      return response.data
+      });
+      return response.data;
     } catch (error) {
-      throw toApiError(error)
+      throw toApiError(error);
     }
   },
 
@@ -158,33 +181,39 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
     try {
       const response = await api.post<DailyJournal>('/api/dailyjournals', payload, {
         headers: await authHeader(resolveToken),
-      })
-      return response.data
+      });
+      return response.data;
     } catch (error) {
-      throw toApiError(error)
+      throw toApiError(error);
     }
   },
 
-  async updateDailyJournal(journalId: string, payload: UpdateDailyJournalPayload): Promise<DailyJournal> {
+  async updateDailyJournal(
+    journalId: string,
+    payload: UpdateDailyJournalPayload
+  ): Promise<DailyJournal> {
     try {
       const response = await api.put<DailyJournal>(`/api/dailyjournals/${journalId}`, payload, {
         headers: await authHeader(resolveToken),
-      })
-      return response.data
+      });
+      return response.data;
     } catch (error) {
-      throw toApiError(error)
+      throw toApiError(error);
     }
   },
 
-  async getAuditLogs(take = 200): Promise<AuditLog[]> {
+  async getAuditLogs(params: GetAuditLogsParams = {}): Promise<PagedResponse<AuditLog>> {
     try {
-      const response = await api.get<AuditLog[]>('/api/auditlogs', {
+      const response = await api.get<PagedResponse<AuditLog>>('/api/auditlogs', {
         headers: await authHeader(resolveToken),
-        params: { take },
-      })
-      return response.data
+        params: {
+          pageNumber: params.pageNumber ?? 1,
+          pageSize: params.pageSize ?? 20,
+        },
+      });
+      return toPagedResponse<AuditLog>(response.data);
     } catch (error) {
-      throw toApiError(error)
+      throw toApiError(error);
     }
   },
-})
+});

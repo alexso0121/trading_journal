@@ -1,127 +1,150 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Dialog } from '../components/Dialog'
-import { ApiError, createApiClient } from '../lib/apiClient'
-import { useAuth } from '../providers/AuthProvider'
-import type { Strategy } from '../types/models'
+import { useEffect, useMemo, useState } from 'react';
+import { DataTable } from 'mantine-datatable';
+import 'mantine-datatable/styles.css';
+import { Dialog } from '../components/Dialog';
+import { ApiError, createApiClient } from '../lib/apiClient';
+import { useAuth } from '../providers/AuthProvider';
+import type { Strategy } from '../types/models';
+
+type PaginationState = {
+  pageIndex: number;
+  pageSize: number;
+};
 
 type StrategyFormState = {
-  name: string
-  description: string
-}
+  name: string;
+  description: string;
+};
 
-const emptyForm: StrategyFormState = { name: '', description: '' }
+const emptyForm: StrategyFormState = { name: '', description: '' };
 
 export const StrategiesPage = () => {
-  const { getToken } = useAuth()
-  const api = useMemo(() => createApiClient(getToken), [getToken])
+  const { getToken } = useAuth();
+  const api = useMemo(() => createApiClient(getToken), [getToken]);
 
-  const [items, setItems] = useState<Strategy[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [pageNumber, setPageNumber] = useState(1)
-  const [pageSize] = useState(10)
-  const [totalCount, setTotalCount] = useState(0)
-  const [createOpen, setCreateOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
-  const [createForm, setCreateForm] = useState<StrategyFormState>(emptyForm)
-  const [editForm, setEditForm] = useState<StrategyFormState>(emptyForm)
-  const [editing, setEditing] = useState<Strategy | null>(null)
+  const [items, setItems] = useState<Strategy[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+  const [totalCount, setTotalCount] = useState(0);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [createForm, setCreateForm] = useState<StrategyFormState>(emptyForm);
+  const [editForm, setEditForm] = useState<StrategyFormState>(emptyForm);
+  const [editing, setEditing] = useState<Strategy | null>(null);
 
-  const loadData = async (targetPage = pageNumber) => {
-    setLoading(true)
-    setError(null)
+  const loadData = async (
+    targetPage = pagination.pageIndex + 1,
+    targetPageSize = pagination.pageSize
+  ) => {
+    setLoading(true);
+    setError(null);
     try {
       const response = await api.getStrategies({
         pageNumber: targetPage,
-        pageSize,
-      })
-      setItems(response.items)
-      setPageNumber(response.pageNumber)
-      setTotalCount(response.totalCount)
+        pageSize: targetPageSize,
+      });
+      setItems(response.items);
+      setTotalCount(response.totalCount);
+      setPagination((prev) => {
+        const nextPageIndex = Math.max(0, response.pageNumber - 1);
+        const nextPageSize = response.pageSize;
+        if (prev.pageIndex === nextPageIndex && prev.pageSize === nextPageSize) {
+          return prev;
+        }
+        return {
+          pageIndex: nextPageIndex,
+          pageSize: nextPageSize,
+        };
+      });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load strategies.')
+      setError(e instanceof Error ? e.message : 'Failed to load strategies.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    void loadData()
-  }, [pageSize])
+    void loadData(pagination.pageIndex + 1, pagination.pageSize);
+  }, [pagination.pageIndex, pagination.pageSize]);
 
   const onCreate = async () => {
     if (!createForm.name.trim()) {
-      setError('Name is required.')
-      return
+      setError('Name is required.');
+      return;
     }
 
-    setError(null)
+    setError(null);
     try {
-    await api.createStrategy({
+      await api.createStrategy({
         name: createForm.name.trim(),
         description: createForm.description.trim(),
-      })
-    setCreateForm(emptyForm)
-    setCreateOpen(false)
-    await loadData(1)
+      });
+      setCreateForm(emptyForm);
+      setCreateOpen(false);
+      setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
+      await loadData(1, pagination.pageSize);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create strategy.')
+      setError(e instanceof Error ? e.message : 'Failed to create strategy.');
     }
-  }
+  };
 
   const onDelete = async (strategy: Strategy) => {
     if (!window.confirm(`Delete strategy "${strategy.name}"?`)) {
-      return
+      return;
     }
 
-    setError(null)
+    setError(null);
     try {
-      await api.deleteStrategy(strategy.id, strategy.version)
-      await loadData()
+      await api.deleteStrategy(strategy.id, strategy.version);
+      await loadData(pagination.pageIndex + 1, pagination.pageSize);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        setError('Conflict: strategy changed on server. Refresh and try again.')
-        return
+        setError('Conflict: strategy changed on server. Refresh and try again.');
+        return;
       }
-      setError(e instanceof Error ? e.message : 'Failed to delete strategy.')
+      setError(e instanceof Error ? e.message : 'Failed to delete strategy.');
     }
-  }
+  };
 
   const startEdit = (strategy: Strategy) => {
-    setEditing(strategy)
-    setEditForm({ name: strategy.name, description: strategy.description })
-    setEditOpen(true)
-  }
+    setEditing(strategy);
+    setEditForm({ name: strategy.name, description: strategy.description });
+    setEditOpen(true);
+  };
 
   const onUpdate = async () => {
     if (!editing) {
-      return
+      return;
     }
 
     if (!editForm.name.trim()) {
-      setError('Name is required.')
-      return
+      setError('Name is required.');
+      return;
     }
 
-    setError(null)
+    setError(null);
     try {
       const updated = await api.updateStrategy(editing.id, {
         name: editForm.name.trim(),
         description: editForm.description.trim(),
         lastKnownVersion: editing.version,
-      })
-      setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
-      setEditOpen(false)
-      setEditing(null)
-      await loadData()
+      });
+      setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      setEditOpen(false);
+      setEditing(null);
+      await loadData(pagination.pageIndex + 1, pagination.pageSize);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        setError('Conflict: strategy changed on server. Refresh and try again.')
-        return
+        setError('Conflict: strategy changed on server. Refresh and try again.');
+        return;
       }
-      setError(e instanceof Error ? e.message : 'Failed to update strategy.')
+      setError(e instanceof Error ? e.message : 'Failed to update strategy.');
     }
-  }
+  };
 
   return (
     <section className="space-y-4">
@@ -139,7 +162,7 @@ export const StrategiesPage = () => {
             type="button"
             className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
             onClick={() => {
-              void loadData()
+              void loadData(pagination.pageIndex + 1, pagination.pageSize);
             }}
           >
             Refresh
@@ -151,91 +174,75 @@ export const StrategiesPage = () => {
       {loading ? <p className="text-sm text-slate-600">Loading...</p> : null}
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-100 text-left">
-            <tr>
-              <th className="px-3 py-2">Name</th>
-              <th className="px-3 py-2">Description</th>
-              <th className="px-3 py-2">Version</th>
-              <th className="px-3 py-2">Trades</th>
-              <th className="px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.id} className="border-t border-slate-200">
-                <td className="px-3 py-2">{item.name}</td>
-                <td className="px-3 py-2">{item.description || '-'}</td>
-                <td className="px-3 py-2">{item.version}</td>
-                <td className="px-3 py-2">{item.trades.length}</td>
-                <td className="px-3 py-2">
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-100"
-                      onClick={() => startEdit(item)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded border border-red-300 px-2 py-1 text-red-700 hover:bg-red-50"
-                      onClick={() => {
-                        void onDelete(item)
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm text-slate-600">
-                    <span>
-                      Showing {items.length} of {totalCount}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        className="rounded border border-slate-300 px-2 py-1 disabled:opacity-50"
-                        disabled={pageNumber <= 1 || loading}
-                        onClick={() => {
-                          void loadData(pageNumber - 1)
-                        }}
-                      >
-                        Previous
-                      </button>
-                      <span>Page {pageNumber}</span>
-                      <button
-                        type="button"
-                        className="rounded border border-slate-300 px-2 py-1 disabled:opacity-50"
-                        disabled={pageNumber * pageSize >= totalCount || loading}
-                        onClick={() => {
-                          void loadData(pageNumber + 1)
-                        }}
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {items.length === 0 && !loading ? (
-              <tr>
-                <td colSpan={5} className="px-3 py-4 text-center text-slate-500">
-                  No strategies yet.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+        <DataTable
+          withTableBorder
+          highlightOnHover
+          striped
+          records={items}
+          fetching={loading}
+          totalRecords={totalCount}
+          recordsPerPage={pagination.pageSize}
+          page={pagination.pageIndex + 1}
+          onPageChange={(page) => {
+            setPagination((prev) => ({ ...prev, pageIndex: page - 1 }));
+          }}
+          recordsPerPageOptions={[10, 20, 50]}
+          onRecordsPerPageChange={(pageSize) => {
+            setPagination({ pageIndex: 0, pageSize });
+          }}
+          columns={[
+            {
+              accessor: 'name',
+              title: 'Name',
+            },
+            {
+              accessor: 'description',
+              title: 'Description',
+              render: (strategy) => strategy.description || '-',
+            },
+            {
+              accessor: 'version',
+              title: 'Version',
+            },
+            {
+              accessor: 'tradesCount',
+              title: 'Trades',
+              render: (strategy) => strategy.trades.length,
+            },
+            {
+              accessor: 'actions',
+              title: '',
+              render: (strategy) => (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-100"
+                    onClick={() => startEdit(strategy)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded border border-red-300 px-2 py-1 text-red-700 hover:bg-red-50"
+                    onClick={() => {
+                      void onDelete(strategy);
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              ),
+            },
+          ]}
+        />
       </div>
 
       <Dialog
         open={createOpen}
         title="Create strategy"
         onClose={() => {
-          setCreateOpen(false)
-          setCreateForm(emptyForm)
+          setCreateOpen(false);
+          setCreateForm(emptyForm);
         }}
       >
         <div className="space-y-3">
@@ -255,7 +262,7 @@ export const StrategiesPage = () => {
             type="button"
             className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800"
             onClick={() => {
-              void onCreate()
+              void onCreate();
             }}
           >
             Save
@@ -267,8 +274,8 @@ export const StrategiesPage = () => {
         open={editOpen}
         title={`Edit strategy${editing ? `: ${editing.name}` : ''}`}
         onClose={() => {
-          setEditOpen(false)
-          setEditing(null)
+          setEditOpen(false);
+          setEditing(null);
         }}
       >
         <div className="space-y-3">
@@ -286,7 +293,7 @@ export const StrategiesPage = () => {
             type="button"
             className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800"
             onClick={() => {
-              void onUpdate()
+              void onUpdate();
             }}
           >
             Update
@@ -294,5 +301,5 @@ export const StrategiesPage = () => {
         </div>
       </Dialog>
     </section>
-  )
-}
+  );
+};

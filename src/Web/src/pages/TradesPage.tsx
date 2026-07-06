@@ -1,20 +1,27 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Dialog } from '../components/Dialog'
-import { ApiError, createApiClient } from '../lib/apiClient'
-import { useAuth } from '../providers/AuthProvider'
-import type { Strategy, Trade } from '../types/models'
+import { useEffect, useMemo, useState } from 'react';
+import { DataTable } from 'mantine-datatable';
+import 'mantine-datatable/styles.css';
+import { Dialog } from '../components/Dialog';
+import { ApiError, createApiClient } from '../lib/apiClient';
+import { useAuth } from '../providers/AuthProvider';
+import type { Strategy, Trade } from '../types/models';
+
+type PaginationState = {
+  pageIndex: number;
+  pageSize: number;
+};
 
 type TradeFormState = {
-  strategyId: string
-  ticker: string
-  market: string
-  direction: number
-  status: number
-  entryPrice: string
-  quantity: string
-  openTimeUtc: string
-  closeTimeUtc: string
-}
+  strategyId: string;
+  ticker: string;
+  market: string;
+  direction: number;
+  status: number;
+  entryPrice: string;
+  quantity: string;
+  openTimeUtc: string;
+  closeTimeUtc: string;
+};
 
 const emptyForm: TradeFormState = {
   strategyId: '',
@@ -26,71 +33,84 @@ const emptyForm: TradeFormState = {
   quantity: '',
   openTimeUtc: '',
   closeTimeUtc: '',
-}
+};
 
 const toDateTimeLocal = (isoUtc: string) => {
-  const date = new Date(isoUtc)
-  const timezoneOffset = date.getTimezoneOffset() * 60_000
-  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16)
-}
+  const date = new Date(isoUtc);
+  const timezoneOffset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+};
 
 export const TradesPage = () => {
-  const { getToken } = useAuth()
-  const api = useMemo(() => createApiClient(getToken), [getToken])
+  const { getToken } = useAuth();
+  const api = useMemo(() => createApiClient(getToken), [getToken]);
 
-  const [trades, setTrades] = useState<Trade[]>([])
-  const [strategies, setStrategies] = useState<Strategy[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [pageNumber, setPageNumber] = useState(1)
-  const [pageSize] = useState(10)
-  const [totalCount, setTotalCount] = useState(0)
-  const [filterStrategyId, setFilterStrategyId] = useState('')
-  const [filterTradingDate, setFilterTradingDate] = useState('')
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+  const [totalCount, setTotalCount] = useState(0);
+  const [filterStrategyId, setFilterStrategyId] = useState('');
+  const [filterTradingDate, setFilterTradingDate] = useState('');
 
-  const [createOpen, setCreateOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
-  const [createForm, setCreateForm] = useState<TradeFormState>(emptyForm)
-  const [editForm, setEditForm] = useState<TradeFormState>(emptyForm)
-  const [editing, setEditing] = useState<Trade | null>(null)
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [createForm, setCreateForm] = useState<TradeFormState>(emptyForm);
+  const [editForm, setEditForm] = useState<TradeFormState>(emptyForm);
+  const [editing, setEditing] = useState<Trade | null>(null);
 
   const loadData = async (
-    targetPage = pageNumber,
+    targetPage = pagination.pageIndex + 1,
+    targetPageSize = pagination.pageSize,
     strategyFilter = filterStrategyId,
-    tradingDateFilter = filterTradingDate,
+    tradingDateFilter = filterTradingDate
   ) => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
       const [tradeResponse, strategyResponse] = await Promise.all([
         api.getTrades({
           pageNumber: targetPage,
-          pageSize,
+          pageSize: targetPageSize,
           strategyId: strategyFilter || undefined,
           tradingDateUtc: tradingDateFilter || undefined,
         }),
         api.getStrategies({ pageNumber: 1, pageSize: 100 }),
-      ])
-      setTrades(tradeResponse.items)
-      setPageNumber(tradeResponse.pageNumber)
-      setTotalCount(tradeResponse.totalCount)
-      setStrategies(strategyResponse.items)
+      ]);
+      setTrades(tradeResponse.items);
+      setTotalCount(tradeResponse.totalCount);
+      setPagination((prev) => {
+        const nextPageIndex = Math.max(0, tradeResponse.pageNumber - 1);
+        const nextPageSize = tradeResponse.pageSize;
+        if (prev.pageIndex === nextPageIndex && prev.pageSize === nextPageSize) {
+          return prev;
+        }
+        return {
+          pageIndex: nextPageIndex,
+          pageSize: nextPageSize,
+        };
+      });
+      setStrategies(strategyResponse.items);
       if (strategyResponse.items.length > 0) {
         setCreateForm((prev) => ({
           ...prev,
           strategyId: prev.strategyId || strategyResponse.items[0].id,
-        }))
+        }));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load trades.')
+      setError(e instanceof Error ? e.message : 'Failed to load trades.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    void loadData()
-  }, [pageSize])
+    void loadData(pagination.pageIndex + 1, pagination.pageSize);
+  }, [pagination.pageIndex, pagination.pageSize]);
 
   const onCreate = async () => {
     if (
@@ -101,11 +121,11 @@ export const TradesPage = () => {
       !createForm.quantity ||
       !createForm.openTimeUtc
     ) {
-      setError('Please complete all required fields.')
-      return
+      setError('Please complete all required fields.');
+      return;
     }
 
-    setError(null)
+    setError(null);
     try {
       await api.createTrade({
         strategyId: createForm.strategyId,
@@ -115,38 +135,39 @@ export const TradesPage = () => {
         entryPrice: Number(createForm.entryPrice),
         quantity: Number(createForm.quantity),
         openTimeUtc: new Date(createForm.openTimeUtc).toISOString(),
-      })
-      setCreateOpen(false)
+      });
+      setCreateOpen(false);
       setCreateForm((prev) => ({
         ...emptyForm,
         strategyId: prev.strategyId,
-      }))
-      await loadData(1)
+      }));
+      setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
+      await loadData(1, pagination.pageSize);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create trade.')
+      setError(e instanceof Error ? e.message : 'Failed to create trade.');
     }
-  }
+  };
 
   const onDelete = async (trade: Trade) => {
     if (!window.confirm(`Delete trade "${trade.ticker}"?`)) {
-      return
+      return;
     }
 
-    setError(null)
+    setError(null);
     try {
-      await api.deleteTrade(trade.id, trade.version)
-      await loadData()
+      await api.deleteTrade(trade.id, trade.version);
+      await loadData(pagination.pageIndex + 1, pagination.pageSize);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        setError('Conflict: trade changed on server. Refresh and try again.')
-        return
+        setError('Conflict: trade changed on server. Refresh and try again.');
+        return;
       }
-      setError(e instanceof Error ? e.message : 'Failed to delete trade.')
+      setError(e instanceof Error ? e.message : 'Failed to delete trade.');
     }
-  }
+  };
 
   const startEdit = (trade: Trade) => {
-    setEditing(trade)
+    setEditing(trade);
     setEditForm({
       strategyId: trade.strategyId,
       ticker: trade.ticker,
@@ -157,13 +178,13 @@ export const TradesPage = () => {
       quantity: String(trade.quantity),
       openTimeUtc: toDateTimeLocal(trade.openTimeUtc),
       closeTimeUtc: trade.closeTimeUtc ? toDateTimeLocal(trade.closeTimeUtc) : '',
-    })
-    setEditOpen(true)
-  }
+    });
+    setEditOpen(true);
+  };
 
   const onUpdate = async () => {
     if (!editing) {
-      return
+      return;
     }
 
     if (
@@ -174,11 +195,11 @@ export const TradesPage = () => {
       !editForm.quantity ||
       !editForm.openTimeUtc
     ) {
-      setError('Please complete all required fields.')
-      return
+      setError('Please complete all required fields.');
+      return;
     }
 
-    setError(null)
+    setError(null);
     try {
       await api.updateTrade(editing.id, {
         strategyId: editForm.strategyId,
@@ -191,18 +212,18 @@ export const TradesPage = () => {
         openTimeUtc: new Date(editForm.openTimeUtc).toISOString(),
         closeTimeUtc: editForm.closeTimeUtc ? new Date(editForm.closeTimeUtc).toISOString() : null,
         lastKnownVersion: editing.version,
-      })
-      setEditOpen(false)
-      setEditing(null)
-      await loadData()
+      });
+      setEditOpen(false);
+      setEditing(null);
+      await loadData(pagination.pageIndex + 1, pagination.pageSize);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
-        setError('Conflict: trade changed on server. Refresh and try again.')
-        return
+        setError('Conflict: trade changed on server. Refresh and try again.');
+        return;
       }
-      setError(e instanceof Error ? e.message : 'Failed to update trade.')
+      setError(e instanceof Error ? e.message : 'Failed to update trade.');
     }
-  }
+  };
 
   return (
     <section className="space-y-4">
@@ -220,14 +241,16 @@ export const TradesPage = () => {
             type="button"
             className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
             onClick={() => {
-              void loadData()
+              void loadData(pagination.pageIndex + 1, pagination.pageSize);
             }}
           >
             Refresh
           </button>
         </div>
+      </div>
 
-        <div className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3 md:grid-cols-4">
+      <div className="flex lg:w-2/3  gap-6">
+        <div className="flex gap-2">
           <select
             className="rounded-md border border-slate-300 px-3 py-2 text-sm"
             value={filterStrategyId}
@@ -241,16 +264,19 @@ export const TradesPage = () => {
             ))}
           </select>
           <input
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
             type="date"
             value={filterTradingDate}
             onChange={(e) => setFilterTradingDate(e.target.value)}
+            className="w-40 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
           />
+        </div>
+        <div className="flex gap-2">
           <button
             type="button"
             className="rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
             onClick={() => {
-              void loadData(1, filterStrategyId, filterTradingDate)
+              setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
+              void loadData(1, pagination.pageSize, filterStrategyId, filterTradingDate);
             }}
           >
             Apply filters
@@ -259,9 +285,10 @@ export const TradesPage = () => {
             type="button"
             className="rounded-md border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
             onClick={() => {
-              setFilterStrategyId('')
-              setFilterTradingDate('')
-              void loadData(1, '', '')
+              setFilterStrategyId('');
+              setFilterTradingDate('');
+              setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
+              void loadData(1, pagination.pageSize, '', '');
             }}
           >
             Clear filters
@@ -273,98 +300,93 @@ export const TradesPage = () => {
       {loading ? <p className="text-sm text-slate-600">Loading...</p> : null}
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-100 text-left">
-            <tr>
-              <th className="px-3 py-2">Ticker</th>
-              <th className="px-3 py-2">Direction</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2">Entry</th>
-              <th className="px-3 py-2">Qty</th>
-              <th className="px-3 py-2">Open</th>
-              <th className="px-3 py-2">Version</th>
-              <th className="px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {trades.map((trade) => (
-              <tr key={trade.id} className="border-t border-slate-200">
-                <td className="px-3 py-2">
+        <DataTable
+          withTableBorder
+          highlightOnHover
+          striped
+          records={trades}
+          fetching={loading}
+          totalRecords={totalCount}
+          recordsPerPage={pagination.pageSize}
+          page={pagination.pageIndex + 1}
+          onPageChange={(page) => {
+            setPagination((prev) => ({ ...prev, pageIndex: page - 1 }));
+          }}
+          recordsPerPageOptions={[10, 20, 50]}
+          onRecordsPerPageChange={(pageSize) => {
+            setPagination({ pageIndex: 0, pageSize });
+          }}
+          columns={[
+            {
+              accessor: 'ticker',
+              title: 'Ticker',
+              render: (trade) => (
+                <>
                   {trade.ticker} <span className="text-xs text-slate-500">({trade.market})</span>
-                </td>
-                <td className="px-3 py-2">{trade.direction === 1 ? 'Long' : 'Short'}</td>
-                <td className="px-3 py-2">{trade.status === 1 ? 'Open' : trade.status === 2 ? 'Closed' : 'Cancelled'}</td>
-                <td className="px-3 py-2">{trade.entryPrice}</td>
-                <td className="px-3 py-2">{trade.quantity}</td>
-                <td className="px-3 py-2">{new Date(trade.openTimeUtc).toLocaleString()}</td>
-                <td className="px-3 py-2">{trade.version}</td>
-                <td className="px-3 py-2">
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-100"
-                      onClick={() => startEdit(trade)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded border border-red-300 px-2 py-1 text-red-700 hover:bg-red-50"
-                      onClick={() => {
-                        void onDelete(trade)
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm text-slate-600">
-                    <span>
-                      Showing {trades.length} of {totalCount}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        className="rounded border border-slate-300 px-2 py-1 disabled:opacity-50"
-                        disabled={pageNumber <= 1 || loading}
-                        onClick={() => {
-                          void loadData(pageNumber - 1)
-                        }}
-                      >
-                        Previous
-                      </button>
-                      <span>Page {pageNumber}</span>
-                      <button
-                        type="button"
-                        className="rounded border border-slate-300 px-2 py-1 disabled:opacity-50"
-                        disabled={pageNumber * pageSize >= totalCount || loading}
-                        onClick={() => {
-                          void loadData(pageNumber + 1)
-                        }}
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {trades.length === 0 && !loading ? (
-              <tr>
-                <td colSpan={8} className="px-3 py-4 text-center text-slate-500">
-                  No trades yet.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+                </>
+              ),
+            },
+            {
+              accessor: 'direction',
+              title: 'Direction',
+              render: (trade) => (trade.direction === 1 ? 'Long' : 'Short'),
+            },
+            {
+              accessor: 'status',
+              title: 'Status',
+              render: (trade) =>
+                trade.status === 1 ? 'Open' : trade.status === 2 ? 'Closed' : 'Cancelled',
+            },
+            {
+              accessor: 'entryPrice',
+              title: 'Entry',
+            },
+            {
+              accessor: 'quantity',
+              title: 'Qty',
+            },
+            {
+              accessor: 'openTimeUtc',
+              title: 'Open',
+              render: (trade) => new Date(trade.openTimeUtc).toLocaleString(),
+            },
+            {
+              accessor: 'version',
+              title: 'Version',
+            },
+            {
+              accessor: 'actions',
+              title: '',
+              render: (trade) => (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="rounded border border-slate-300 px-2 py-1 hover:bg-slate-100"
+                    onClick={() => startEdit(trade)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded border border-red-300 px-2 py-1 text-red-700 hover:bg-red-50"
+                    onClick={() => {
+                      void onDelete(trade);
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              ),
+            },
+          ]}
+        />
       </div>
 
       <Dialog
         open={createOpen}
         title="Create trade"
         onClose={() => {
-          setCreateOpen(false)
+          setCreateOpen(false);
         }}
       >
         <div className="grid gap-2 md:grid-cols-2">
@@ -395,7 +417,9 @@ export const TradesPage = () => {
           <select
             className="rounded-md border border-slate-300 px-3 py-2 text-sm"
             value={createForm.direction}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, direction: Number(e.target.value) }))}
+            onChange={(e) =>
+              setCreateForm((prev) => ({ ...prev, direction: Number(e.target.value) }))
+            }
           >
             <option value={1}>Long</option>
             <option value={2}>Short</option>
@@ -428,7 +452,7 @@ export const TradesPage = () => {
             type="button"
             className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800"
             onClick={() => {
-              void onCreate()
+              void onCreate();
             }}
           >
             Save
@@ -440,8 +464,8 @@ export const TradesPage = () => {
         open={editOpen}
         title={`Edit trade${editing ? `: ${editing.ticker}` : ''}`}
         onClose={() => {
-          setEditOpen(false)
-          setEditing(null)
+          setEditOpen(false);
+          setEditing(null);
         }}
       >
         <div className="grid gap-2 md:grid-cols-2">
@@ -469,7 +493,9 @@ export const TradesPage = () => {
           <select
             className="rounded-md border border-slate-300 px-3 py-2 text-sm"
             value={editForm.direction}
-            onChange={(e) => setEditForm((prev) => ({ ...prev, direction: Number(e.target.value) }))}
+            onChange={(e) =>
+              setEditForm((prev) => ({ ...prev, direction: Number(e.target.value) }))
+            }
           >
             <option value={1}>Long</option>
             <option value={2}>Short</option>
@@ -515,7 +541,7 @@ export const TradesPage = () => {
             type="button"
             className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800"
             onClick={() => {
-              void onUpdate()
+              void onUpdate();
             }}
           >
             Update
@@ -523,5 +549,5 @@ export const TradesPage = () => {
         </div>
       </Dialog>
     </section>
-  )
-}
+  );
+};

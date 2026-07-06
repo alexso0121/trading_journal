@@ -1,6 +1,7 @@
 import { format, parse, startOfWeek, getDay } from 'date-fns'
 import { enUS } from 'date-fns/locale/en-US'
 import { useEffect, useMemo, useState } from 'react'
+import { Badge, Button, Group, Table } from '@mantine/core'
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import { Dialog } from '../components/Dialog'
@@ -28,7 +29,12 @@ type CalendarTradeEvent = {
   resource: Trade
 }
 
-const toDayKey = (date: Date) => format(date, 'yyyy-MM-dd')
+const toDayKey = (date: Date) => {
+  const year = date.getFullYear()
+  const month = `${date.getMonth() + 1}`.padStart(2, '0')
+  const day = `${date.getDate()}`.padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
 const toJournalIso = (date: Date) =>
   new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())).toISOString()
@@ -37,40 +43,71 @@ export const TradeCalendarPage = () => {
   const { getToken } = useAuth()
   const api = useMemo(() => createApiClient(getToken), [getToken])
 
+  const [calendarTrades, setCalendarTrades] = useState<Trade[]>([])
   const [trades, setTrades] = useState<Trade[]>([])
   const [journals, setJournals] = useState<DailyJournal[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loadingCalendarTrades, setLoadingCalendarTrades] = useState(false)
+  const [loadingTrades, setLoadingTrades] = useState(false)
+  const [loadingJournals, setLoadingJournals] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [journalNote, setJournalNote] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const loadData = async () => {
-    setLoading(true)
+  const loadCalendarTrades = async () => {
+    setLoadingCalendarTrades(true)
     setError(null)
     try {
-      const [tradeData, journalData] = await Promise.all([
-        api.getTrades({ pageNumber: 1, pageSize: 100 }),
-        api.getDailyJournals(),
-      ])
-      setTrades(tradeData.items)
+      const tradeData = await api.getTrades({ pageNumber: 1, pageSize: 300 })
+      setCalendarTrades(tradeData.items)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load calendar trades.')
+    } finally {
+      setLoadingCalendarTrades(false)
+    }
+  }
+
+  const loadJournals = async () => {
+    setLoadingJournals(true)
+    setError(null)
+    try {
+      const journalData = await api.getDailyJournals()
       setJournals(journalData)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load calendar data.')
+      setError(e instanceof Error ? e.message : 'Failed to load journals.')
     } finally {
-      setLoading(false)
+      setLoadingJournals(false)
+    }
+  }
+
+  const loadTradesByDate = async (date: Date) => {
+    setLoadingTrades(true)
+    setError(null)
+    try {
+      const tradeData = await api.getTrades({
+        pageNumber: 1,
+        pageSize: 100,
+        tradingDateUtc: toDayKey(date),
+      })
+      setTrades(tradeData.items)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load trades for selected day.')
+    } finally {
+      setLoadingTrades(false)
     }
   }
 
   useEffect(() => {
-    void loadData()
+    void loadCalendarTrades()
+    void loadJournals()
+    void loadTradesByDate(selectedDate)
   }, [])
 
   const events = useMemo<CalendarTradeEvent[]>(
     () =>
-      trades.map((trade) => {
+      calendarTrades.map((trade) => {
         const openTime = new Date(trade.openTimeUtc)
         return {
           title: `${trade.ticker} (${trade.quantity})`,
@@ -80,18 +117,11 @@ export const TradeCalendarPage = () => {
           resource: trade,
         }
       }),
-    [trades],
+    [calendarTrades],
   )
 
-  const selectedDayKey = selectedDate ? toDayKey(selectedDate) : null
-  const selectedJournalDatePart = selectedDate ? toJournalIso(selectedDate).slice(0, 10) : null
-
-  const dayTrades = useMemo(() => {
-    if (!selectedDayKey) {
-      return []
-    }
-    return trades.filter((trade) => toDayKey(new Date(trade.openTimeUtc)) === selectedDayKey)
-  }, [selectedDayKey, trades])
+  const selectedDayKey = toDayKey(selectedDate)
+  const selectedJournalDatePart = toJournalIso(selectedDate).slice(0, 10)
 
   const existingJournal = useMemo(() => {
     if (!selectedJournalDatePart) {
@@ -106,14 +136,11 @@ export const TradeCalendarPage = () => {
 
   const openDayDialog = (date: Date) => {
     setSelectedDate(date)
+    void loadTradesByDate(date)
     setDialogOpen(true)
   }
 
   const saveJournal = async () => {
-    if (!selectedDate) {
-      return
-    }
-
     setSaving(true)
     setError(null)
     try {
@@ -137,19 +164,26 @@ export const TradeCalendarPage = () => {
     }
   }
 
+  const loading = loadingCalendarTrades || loadingJournals || loadingTrades
+
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Trade Calendar</h2>
-        <button
-          type="button"
-          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
-          onClick={() => {
-            void loadData()
-          }}
-        >
-          Refresh
-        </button>
+        <Group gap="sm">
+          <Badge variant="light">Selected day: {selectedDayKey}</Badge>
+          <Button
+            variant="default"
+            size="xs"
+            onClick={() => {
+              void loadCalendarTrades()
+              void loadJournals()
+              void loadTradesByDate(selectedDate)
+            }}
+          >
+            Refresh
+          </Button>
+        </Group>
       </div>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -165,47 +199,51 @@ export const TradeCalendarPage = () => {
           onSelectSlot={(slotInfo) => openDayDialog(slotInfo.start)}
           onSelectEvent={(event) => openDayDialog((event as CalendarTradeEvent).start)}
           selectable
+          date={selectedDate}
+          onNavigate={(date) => {
+            setSelectedDate(date)
+          }}
         />
       </div>
 
       <Dialog
         open={dialogOpen}
-        title={selectedDate ? `Daily Journal - ${selectedDate.toLocaleDateString()}` : 'Daily Journal'}
+        title={`Daily Journal - ${selectedDate.toLocaleDateString()}`}
         onClose={() => setDialogOpen(false)}
       >
         <div className="space-y-4">
           <div>
             <h4 className="mb-2 font-medium">Trades of the day</h4>
             <div className="overflow-hidden rounded-md border border-slate-200">
-              <table className="min-w-full text-sm">
-                <thead className="bg-slate-100 text-left">
-                  <tr>
-                    <th className="px-3 py-2">Ticker</th>
-                    <th className="px-3 py-2">Direction</th>
-                    <th className="px-3 py-2">Qty</th>
-                    <th className="px-3 py-2">Open time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dayTrades.map((trade) => (
-                    <tr key={trade.id} className="border-t border-slate-200">
-                      <td className="px-3 py-2">
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Ticker</Table.Th>
+                    <Table.Th>Direction</Table.Th>
+                    <Table.Th>Qty</Table.Th>
+                    <Table.Th>Open time</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {trades.map((trade) => (
+                    <Table.Tr key={trade.id}>
+                      <Table.Td>
                         {trade.ticker} <span className="text-xs text-slate-500">({trade.market})</span>
-                      </td>
-                      <td className="px-3 py-2">{trade.direction === 1 ? 'Long' : 'Short'}</td>
-                      <td className="px-3 py-2">{trade.quantity}</td>
-                      <td className="px-3 py-2">{new Date(trade.openTimeUtc).toLocaleTimeString()}</td>
-                    </tr>
+                      </Table.Td>
+                      <Table.Td>{trade.direction === 1 ? 'Long' : 'Short'}</Table.Td>
+                      <Table.Td>{trade.quantity}</Table.Td>
+                      <Table.Td>{new Date(trade.openTimeUtc).toLocaleTimeString()}</Table.Td>
+                    </Table.Tr>
                   ))}
-                  {dayTrades.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-3 py-3 text-center text-slate-500">
+                  {trades.length === 0 ? (
+                    <Table.Tr>
+                      <Table.Td colSpan={4} className="text-center text-slate-500">
                         No trades for this day.
-                      </td>
-                    </tr>
+                      </Table.Td>
+                    </Table.Tr>
                   ) : null}
-                </tbody>
-              </table>
+                </Table.Tbody>
+              </Table>
             </div>
           </div>
 

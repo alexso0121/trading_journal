@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using trading_journel_app.Api.Authentication;
+using trading_journel_app.Application.Common;
 using trading_journel_app.Infrastructure.Persistence;
 
 namespace trading_journel_app.Api.Controllers;
@@ -12,20 +13,29 @@ namespace trading_journel_app.Api.Controllers;
 public sealed class AuditLogsController(TradingJournalDbContext dbContext) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> GetAuditLogs([FromQuery] int take = 200, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> GetAuditLogs(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
     {
         if (!User.TryGetCurrentUserId(out var userId))
         {
             return Unauthorized("Firebase token must include a GUID user id claim.");
         }
 
-        var safeTake = Math.Clamp(take, 1, 1000);
+        var safePageNumber = Math.Max(1, pageNumber);
+        var safePageSize = Math.Clamp(pageSize, 1, 200);
 
-        var logs = await dbContext.AuditLogs
+        var query = dbContext.AuditLogs
             .AsNoTracking()
             .Where(log => log.UserId == userId)
-            .OrderByDescending(log => log.OccurredAtUtc)
-            .Take(safeTake)
+            .OrderByDescending(log => log.OccurredAtUtc);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var logs = await query
+            .Skip((safePageNumber - 1) * safePageSize)
+            .Take(safePageSize)
             .Select(log => new AuditLogResponse(
                 log.Id,
                 log.EntityId,
@@ -37,7 +47,11 @@ public sealed class AuditLogsController(TradingJournalDbContext dbContext) : Con
                 log.OccurredAtUtc))
             .ToListAsync(cancellationToken);
 
-        return Ok(logs);
+        return Ok(new PagedResponse<AuditLogResponse>(
+            logs,
+            safePageNumber,
+            safePageSize,
+            totalCount));
     }
 }
 

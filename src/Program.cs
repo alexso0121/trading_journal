@@ -4,7 +4,11 @@ using trading_journel_app.Infrastructure.Authentication;
 using trading_journel_app.Infrastructure.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
-const string FrontendCorsPolicy = "FrontendCorsPolicy";
+const string frontendCorsPolicy = "FrontendCorsPolicy";
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? [];
+
 
 builder.Services.AddControllers();
 builder.Services.AddFluentValidationAutoValidation();
@@ -12,13 +16,15 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(FrontendCorsPolicy, policy =>
+    options.AddPolicy(frontendCorsPolicy, policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
 });
+
+
 builder.Services.AddFirebaseAuthentication(builder.Configuration);
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -32,7 +38,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors(FrontendCorsPolicy);
+app.UseCors(frontendCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

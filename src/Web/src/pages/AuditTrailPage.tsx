@@ -1,38 +1,54 @@
-import { useEffect, useMemo, useState } from 'react'
-import { createApiClient } from '../lib/apiClient'
-import { useAuth } from '../providers/AuthProvider'
-import type { AuditLog } from '../types/models'
+import { useEffect, useMemo, useState } from 'react';
+import { DataTable } from 'mantine-datatable';
+import 'mantine-datatable/styles.css';
+import { createApiClient } from '../lib/apiClient';
+import { useAuth } from '../providers/AuthProvider';
+import type { AuditLog } from '../types/models';
 
 const trimPayload = (payloadJson: string) => {
   if (payloadJson.length <= 180) {
-    return payloadJson
+    return payloadJson;
   }
-  return `${payloadJson.slice(0, 180)}...`
-}
+  return `${payloadJson.slice(0, 180)}...`;
+};
 
 export const AuditTrailPage = () => {
-  const { getToken } = useAuth()
-  const api = useMemo(() => createApiClient(getToken), [getToken])
+  const { getToken } = useAuth();
+  const api = useMemo(() => createApiClient(getToken), [getToken]);
 
-  const [items, setItems] = useState<AuditLog[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [items, setItems] = useState<AuditLog[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [recordsPerPage, setRecordsPerPage] = useState(20);
+  const [totalRecords, setTotalRecords] = useState(0);
 
-  const loadData = async () => {
-    setLoading(true)
-    setError(null)
+  const loadData = async (targetPage = page, targetPageSize = recordsPerPage) => {
+    setLoading(true);
+    setError(null);
     try {
-      setItems(await api.getAuditLogs(300))
+      const response = await api.getAuditLogs({
+        pageNumber: targetPage,
+        pageSize: targetPageSize,
+      });
+      setItems(response.items);
+      setTotalRecords(response.totalCount);
+      if (response.pageNumber !== page) {
+        setPage(response.pageNumber);
+      }
+      if (response.pageSize !== recordsPerPage) {
+        setRecordsPerPage(response.pageSize);
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load audit trail.')
+      setError(e instanceof Error ? e.message : 'Failed to load audit trail.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    void loadData()
-  }, [])
+    void loadData(page, recordsPerPage);
+  }, [page, recordsPerPage]);
 
   return (
     <section className="space-y-4">
@@ -42,7 +58,7 @@ export const AuditTrailPage = () => {
           type="button"
           className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
           onClick={() => {
-            void loadData()
+            void loadData(page, recordsPerPage);
           }}
         >
           Refresh
@@ -53,41 +69,56 @@ export const AuditTrailPage = () => {
       {loading ? <p className="text-sm text-slate-600">Loading...</p> : null}
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-100 text-left">
-            <tr>
-              <th className="px-3 py-2">Time</th>
-              <th className="px-3 py-2">Entity</th>
-              <th className="px-3 py-2">Event</th>
-              <th className="px-3 py-2">Version</th>
-              <th className="px-3 py-2">Payload</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.id} className="border-t border-slate-200 align-top">
-                <td className="px-3 py-2 whitespace-nowrap">{new Date(item.occurredAtUtc).toLocaleString()}</td>
-                <td className="px-3 py-2">
+        <DataTable
+          withTableBorder
+          highlightOnHover
+          striped
+          records={items}
+          fetching={loading}
+          totalRecords={totalRecords}
+          recordsPerPage={recordsPerPage}
+          page={page}
+          onPageChange={setPage}
+          recordsPerPageOptions={[20, 50, 100]}
+          onRecordsPerPageChange={(value) => {
+            setRecordsPerPage(value);
+            setPage(1);
+          }}
+          columns={[
+            {
+              accessor: 'occurredAtUtc',
+              title: 'Time',
+              render: (item) => new Date(item.occurredAtUtc).toLocaleString(),
+            },
+            {
+              accessor: 'entity',
+              title: 'Entity',
+              render: (item) => (
+                <div>
                   <div>{item.entityType}</div>
                   <div className="text-xs text-slate-500">{item.entityId}</div>
-                </td>
-                <td className="px-3 py-2">{item.eventType}</td>
-                <td className="px-3 py-2">{item.version ?? '-'}</td>
-                <td className="px-3 py-2">
-                  <code className="text-xs text-slate-700">{trimPayload(item.payloadJson)}</code>
-                </td>
-              </tr>
-            ))}
-            {items.length === 0 && !loading ? (
-              <tr>
-                <td colSpan={5} className="px-3 py-4 text-center text-slate-500">
-                  No audit events yet.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+                </div>
+              ),
+            },
+            {
+              accessor: 'eventType',
+              title: 'Event',
+            },
+            {
+              accessor: 'version',
+              title: 'Version',
+              render: (item) => item.version ?? '-',
+            },
+            {
+              accessor: 'payloadJson',
+              title: 'Payload',
+              render: (item) => (
+                <code className="text-xs text-slate-700">{trimPayload(item.payloadJson)}</code>
+              ),
+            },
+          ]}
+        />
       </div>
     </section>
-  )
-}
+  );
+};
