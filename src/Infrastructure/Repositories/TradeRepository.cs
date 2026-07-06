@@ -40,6 +40,8 @@ public sealed class TradeRepository(TradingJournalDbContext dbContext) : ITradeR
         int pageSize,
         Guid? strategyId,
         DateTime? tradingDateUtc,
+        DateTime? startDateUtc,
+        DateTime? endDateUtc,
         CancellationToken cancellationToken)
     {
         var query = dbContext.Trades
@@ -56,6 +58,18 @@ public sealed class TradeRepository(TradingJournalDbContext dbContext) : ITradeR
             var dayStartUtc = DateTime.SpecifyKind(tradingDateUtc.Value.Date, DateTimeKind.Utc);
             var dayEndUtc = dayStartUtc.AddDays(1);
             query = query.Where(t => t.OpenTimeUtc >= dayStartUtc && t.OpenTimeUtc < dayEndUtc);
+        }
+
+        if (startDateUtc.HasValue)
+        {
+            var rangeStartUtc = DateTime.SpecifyKind(startDateUtc.Value.Date, DateTimeKind.Utc);
+            query = query.Where(t => t.OpenTimeUtc >= rangeStartUtc);
+        }
+
+        if (endDateUtc.HasValue)
+        {
+            var rangeEndExclusiveUtc = DateTime.SpecifyKind(endDateUtc.Value.Date, DateTimeKind.Utc).AddDays(1);
+            query = query.Where(t => t.OpenTimeUtc < rangeEndExclusiveUtc);
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

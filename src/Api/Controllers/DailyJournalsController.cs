@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using trading_journel_app.Api.Authentication;
 using trading_journel_app.Application.Features.DailyJournals;
 using trading_journel_app.Application.Features.DailyJournals.CreateDailyJournal;
+using trading_journel_app.Application.Features.DailyJournals.Screenshots;
 using trading_journel_app.Application.Features.DailyJournals.UpdateDailyJournal;
 
 namespace trading_journel_app.Api.Controllers;
@@ -70,5 +71,21 @@ public sealed class DailyJournalsController : ControllerBase
     {
         var deleted = await useCase.ExecuteAsync(id, cancellationToken);
         return deleted ? NoContent() : NotFound();
+    }
+
+    [HttpPost("{id:guid}/screenshot/upload-url")]
+    public async Task<IActionResult> CreateScreenshotUploadUrl(
+        Guid id,
+        [FromBody] CreateDailyJournalScreenshotUploadUrlRequest request,
+        [FromServices] CreateDailyJournalScreenshotUploadUrlUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized("Firebase token must include a GUID user id claim.");
+        }
+
+        var response = await useCase.ExecuteAsync(userId, id, request, cancellationToken);
+        return response is null ? NotFound() : Ok(response);
     }
 }

@@ -3,5 +3,6 @@ namespace trading_journel_app.Application.Features.DailyJournals.CreateDailyJour
 public sealed class CreateDailyJournalRequest
 {
     public DateTime JournalDateUtc { get; init; }
-    public string Note { get; init; } = string.Empty;
+    public string TradeIdea { get; init; } = string.Empty;
+    public string Reflection { get; init; } = string.Empty;
 }

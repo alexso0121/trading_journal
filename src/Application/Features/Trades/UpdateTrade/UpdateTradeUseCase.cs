@@ -27,10 +27,13 @@ public sealed class UpdateTradeUseCase(ITradeRepository tradeRepository, IUnitOf
             request.StrategyId,
             request.Ticker,
             request.Market,
+            request.Asset,
             request.Direction,
             request.Status,
             request.EntryPrice,
             request.Quantity,
+            request.Pnl,
+            request.Comments,
             request.OpenTimeUtc,
             request.CloseTimeUtc);
 

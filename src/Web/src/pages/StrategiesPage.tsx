@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { DataTable } from 'mantine-datatable';
 import 'mantine-datatable/styles.css';
 import { Dialog } from '../components/Dialog';
+import { StrategyRichTextEditor } from '../components/StrategyRichTextEditor';
 import { ApiError, createApiClient } from '../lib/apiClient';
 import { useAuth } from '../providers/AuthProvider';
 import type { Strategy } from '../types/models';
@@ -14,9 +15,19 @@ type PaginationState = {
 type StrategyFormState = {
   name: string;
   description: string;
+  tags: string[];
+  tagInput: string;
 };
 
-const emptyForm: StrategyFormState = { name: '', description: '' };
+const emptyForm: StrategyFormState = { name: '', description: '', tags: [], tagInput: '' };
+
+const toPlainText = (value: string) =>
+  value
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const normalizeTag = (value: string) => value.trim().toLowerCase();
 
 export const StrategiesPage = () => {
   const { getToken } = useAuth();
@@ -35,6 +46,28 @@ export const StrategiesPage = () => {
   const [createForm, setCreateForm] = useState<StrategyFormState>(emptyForm);
   const [editForm, setEditForm] = useState<StrategyFormState>(emptyForm);
   const [editing, setEditing] = useState<Strategy | null>(null);
+
+  const appendTag = (form: StrategyFormState): StrategyFormState => {
+    const candidate = form.tagInput.trim();
+    if (!candidate) {
+      return form;
+    }
+
+    if (form.tags.length >= 20) {
+      return form;
+    }
+
+    if (form.tags.some((tag) => normalizeTag(tag) === normalizeTag(candidate))) {
+      return { ...form, tagInput: '' };
+    }
+
+    return { ...form, tags: [...form.tags, candidate], tagInput: '' };
+  };
+
+  const removeTagAt = (form: StrategyFormState, index: number): StrategyFormState => ({
+    ...form,
+    tags: form.tags.filter((_, i) => i !== index),
+  });
 
   const loadData = async (
     targetPage = pagination.pageIndex + 1,
@@ -82,6 +115,7 @@ export const StrategiesPage = () => {
       await api.createStrategy({
         name: createForm.name.trim(),
         description: createForm.description.trim(),
+        tags: createForm.tags,
       });
       setCreateForm(emptyForm);
       setCreateOpen(false);
@@ -112,7 +146,12 @@ export const StrategiesPage = () => {
 
   const startEdit = (strategy: Strategy) => {
     setEditing(strategy);
-    setEditForm({ name: strategy.name, description: strategy.description });
+    setEditForm({
+      name: strategy.name,
+      description: strategy.description,
+      tags: strategy.tags.map((tag) => tag.name),
+      tagInput: '',
+    });
     setEditOpen(true);
   };
 
@@ -131,6 +170,7 @@ export const StrategiesPage = () => {
       const updated = await api.updateStrategy(editing.id, {
         name: editForm.name.trim(),
         description: editForm.description.trim(),
+        tags: editForm.tags,
         lastKnownVersion: editing.version,
       });
       setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
@@ -144,6 +184,20 @@ export const StrategiesPage = () => {
       }
       setError(e instanceof Error ? e.message : 'Failed to update strategy.');
     }
+  };
+
+  const uploadStrategyEditorImage = async (file: File): Promise<string> => {
+    if (!editing) {
+      throw new Error('Save strategy first before uploading images.');
+    }
+
+    const uploadInfo = await api.createStrategyContentImageUploadUrl(editing.id, {
+      fileName: file.name,
+      contentType: file.type,
+    });
+
+    await api.uploadFileToPresignedUrl(uploadInfo.uploadUrl, file);
+    return uploadInfo.downloadUrl;
   };
 
   return (
@@ -198,7 +252,33 @@ export const StrategiesPage = () => {
             {
               accessor: 'description',
               title: 'Description',
-              render: (strategy) => strategy.description || '-',
+              render: (strategy) => {
+                const text = toPlainText(strategy.description);
+                if (!text) {
+                  return '-';
+                }
+
+                return text.length > 120 ? `${text.slice(0, 120)}...` : text;
+              },
+            },
+            {
+              accessor: 'tags',
+              title: 'Tags',
+              render: (strategy) =>
+                strategy.tags.length === 0 ? (
+                  <span className="text-slate-400">-</span>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {strategy.tags.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className="rounded-full border border-slate-300 bg-slate-50 px-2 py-0.5 text-xs"
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
+                  </div>
+                ),
             },
             {
               accessor: 'version',
@@ -252,12 +332,41 @@ export const StrategiesPage = () => {
             value={createForm.name}
             onChange={(e) => setCreateForm((prev) => ({ ...prev, name: e.target.value }))}
           />
-          <textarea
-            placeholder="Description"
-            className="h-28 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          <textarea hidden value={createForm.description} onChange={() => {}} />
+          <StrategyRichTextEditor
             value={createForm.description}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, description: e.target.value }))}
+            onChange={(description) => setCreateForm((prev) => ({ ...prev, description }))}
+            placeholder="Rich text strategy notes"
           />
+          <div className="space-y-2">
+            <input
+              placeholder="Add tags and press Enter"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              value={createForm.tagInput}
+              onChange={(e) => setCreateForm((prev) => ({ ...prev, tagInput: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ',') {
+                  e.preventDefault();
+                  setCreateForm((prev) => appendTag(prev));
+                }
+                if (e.key === 'Backspace' && !createForm.tagInput && createForm.tags.length > 0) {
+                  setCreateForm((prev) => removeTagAt(prev, prev.tags.length - 1));
+                }
+              }}
+            />
+            <div className="flex flex-wrap gap-2">
+              {createForm.tags.map((tag, index) => (
+                <button
+                  key={`${tag}-${index}`}
+                  type="button"
+                  className="rounded-full border border-slate-300 bg-slate-50 px-2 py-0.5 text-xs hover:bg-slate-100"
+                  onClick={() => setCreateForm((prev) => removeTagAt(prev, index))}
+                >
+                  {tag} x
+                </button>
+              ))}
+            </div>
+          </div>
           <button
             type="button"
             className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800"
@@ -284,11 +393,42 @@ export const StrategiesPage = () => {
             value={editForm.name}
             onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
           />
-          <textarea
-            className="h-28 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          <textarea hidden value={editForm.description} onChange={() => {}} />
+          <StrategyRichTextEditor
             value={editForm.description}
-            onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+            onChange={(description) => setEditForm((prev) => ({ ...prev, description }))}
+            onImageUpload={uploadStrategyEditorImage}
+            placeholder="Rich text strategy notes"
           />
+          <div className="space-y-2">
+            <input
+              placeholder="Add tags and press Enter"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              value={editForm.tagInput}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, tagInput: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ',') {
+                  e.preventDefault();
+                  setEditForm((prev) => appendTag(prev));
+                }
+                if (e.key === 'Backspace' && !editForm.tagInput && editForm.tags.length > 0) {
+                  setEditForm((prev) => removeTagAt(prev, prev.tags.length - 1));
+                }
+              }}
+            />
+            <div className="flex flex-wrap gap-2">
+              {editForm.tags.map((tag, index) => (
+                <button
+                  key={`${tag}-${index}`}
+                  type="button"
+                  className="rounded-full border border-slate-300 bg-slate-50 px-2 py-0.5 text-xs hover:bg-slate-100"
+                  onClick={() => setEditForm((prev) => removeTagAt(prev, index))}
+                >
+                  {tag} x
+                </button>
+              ))}
+            </div>
+          </div>
           <button
             type="button"
             className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800"

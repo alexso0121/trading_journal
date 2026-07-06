@@ -15,5 +15,7 @@ public interface ITradeRepository
         int pageSize,
         Guid? strategyId,
         DateTime? tradingDateUtc,
+        DateTime? startDateUtc,
+        DateTime? endDateUtc,
         CancellationToken cancellationToken);
 }

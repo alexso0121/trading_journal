@@ -10,6 +10,7 @@ public sealed record StrategyResponse(
     int Version,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
+    IReadOnlyCollection<StrategyTagResponse> Tags,
     IReadOnlyCollection<StrategyTradeResponse> Trades)
 {
     public static StrategyResponse FromEntity(Strategy strategy) =>
@@ -21,6 +22,10 @@ public sealed record StrategyResponse(
             strategy.Version,
             strategy.CreatedAtUtc,
             strategy.UpdatedAtUtc,
+            strategy.Tags
+                .OrderBy(t => t.Name)
+                .Select(StrategyTagResponse.FromEntity)
+                .ToList(),
             strategy.Trades
                 .OrderByDescending(t => t.OpenTimeUtc)
                 .Select(t => new StrategyTradeResponse(

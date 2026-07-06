@@ -45,5 +45,25 @@ public sealed class StrategyConfiguration : IEntityTypeConfiguration<Strategy>
             .WithOne(t => t.Strategy)
             .HasForeignKey(t => t.StrategyId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(s => s.Tags)
+            .WithMany(t => t.Strategies)
+            .UsingEntity<Dictionary<string, object>>(
+                "strategy_tag_mappings",
+                join => join
+                    .HasOne<StrategyTag>()
+                    .WithMany()
+                    .HasForeignKey("strategy_tag_id")
+                    .OnDelete(DeleteBehavior.Cascade),
+                join => join
+                    .HasOne<Strategy>()
+                    .WithMany()
+                    .HasForeignKey("strategy_id")
+                    .OnDelete(DeleteBehavior.Cascade),
+                join =>
+                {
+                    join.ToTable("strategy_tag_mappings");
+                    join.HasKey("strategy_id", "strategy_tag_id");
+                });
     }
 }

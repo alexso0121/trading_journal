@@ -7,10 +7,13 @@ public sealed class UpdateTradeRequest
     public Guid StrategyId { get; init; }
     public string Ticker { get; init; } = string.Empty;
     public string Market { get; init; } = string.Empty;
+    public TradeAsset Asset { get; init; }
     public TradeDirection Direction { get; init; }
     public TradeStatus Status { get; init; }
     public decimal EntryPrice { get; init; }
     public decimal Quantity { get; init; }
+    public decimal Pnl { get; init; }
+    public string Comments { get; init; } = string.Empty;
     public DateTime OpenTimeUtc { get; init; }
     public DateTime? CloseTimeUtc { get; init; }
     public int LastKnownVersion { get; init; }

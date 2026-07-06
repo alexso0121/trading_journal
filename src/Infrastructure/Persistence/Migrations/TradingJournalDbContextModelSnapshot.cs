@@ -22,6 +22,21 @@ namespace trading_journel_app.src.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("strategy_tag_mappings", b =>
+                {
+                    b.Property<Guid>("strategy_id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("strategy_tag_id")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("strategy_id", "strategy_tag_id");
+
+                    b.HasIndex("strategy_tag_id");
+
+                    b.ToTable("strategy_tag_mappings", (string)null);
+                });
+
             modelBuilder.Entity("trading_journel_app.Domain.Entities.DailyJournal", b =>
                 {
                     b.Property<Guid>("Id")
@@ -39,9 +54,21 @@ namespace trading_journel_app.src.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Note")
                         .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)")
                         .HasColumnName("note");
+
+                    b.Property<string>("Reflection")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("reflection");
+
+                    b.Property<string>("TradeIdea")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("trade_idea");
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone")
@@ -54,6 +81,60 @@ namespace trading_journel_app.src.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("daily_journals", (string)null);
+                });
+
+            modelBuilder.Entity("trading_journel_app.Domain.Entities.DailyJournalScreenshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("DailyJournalId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("daily_journal_id");
+
+                    b.Property<string>("DownloadUrl")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("download_url");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at_utc");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("storage_key");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DailyJournalId", "CreatedAtUtc");
+
+                    b.ToTable("daily_journal_screenshots", (string)null);
                 });
 
             modelBuilder.Entity("trading_journel_app.Domain.Entities.Strategy", b =>
@@ -99,6 +180,41 @@ namespace trading_journel_app.src.Infrastructure.Persistence.Migrations
                     b.ToTable("strategies", (string)null);
                 });
 
+            modelBuilder.Entity("trading_journel_app.Domain.Entities.StrategyTag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("normalized_name");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("strategy_tags", (string)null);
+                });
+
             modelBuilder.Entity("trading_journel_app.Domain.Entities.Trade", b =>
                 {
                     b.Property<Guid>("Id")
@@ -106,9 +222,19 @@ namespace trading_journel_app.src.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<int>("Asset")
+                        .HasColumnType("integer")
+                        .HasColumnName("asset");
+
                     b.Property<DateTime?>("CloseTimeUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("close_time_utc");
+
+                    b.Property<string>("Comments")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("comments");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone")
@@ -132,6 +258,11 @@ namespace trading_journel_app.src.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("OpenTimeUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("open_time_utc");
+
+                    b.Property<decimal>("Pnl")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("numeric(18,6)")
+                        .HasColumnName("pnl");
 
                     b.Property<decimal>("Quantity")
                         .HasPrecision(18, 6)
@@ -223,6 +354,32 @@ namespace trading_journel_app.src.Infrastructure.Persistence.Migrations
                     b.ToTable("audit_logs", (string)null);
                 });
 
+            modelBuilder.Entity("strategy_tag_mappings", b =>
+                {
+                    b.HasOne("trading_journel_app.Domain.Entities.Strategy", null)
+                        .WithMany()
+                        .HasForeignKey("strategy_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("trading_journel_app.Domain.Entities.StrategyTag", null)
+                        .WithMany()
+                        .HasForeignKey("strategy_tag_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("trading_journel_app.Domain.Entities.DailyJournalScreenshot", b =>
+                {
+                    b.HasOne("trading_journel_app.Domain.Entities.DailyJournal", "DailyJournal")
+                        .WithMany("Screenshots")
+                        .HasForeignKey("DailyJournalId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DailyJournal");
+                });
+
             modelBuilder.Entity("trading_journel_app.Domain.Entities.Trade", b =>
                 {
                     b.HasOne("trading_journel_app.Domain.Entities.Strategy", "Strategy")
@@ -232,6 +389,11 @@ namespace trading_journel_app.src.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Strategy");
+                });
+
+            modelBuilder.Entity("trading_journel_app.Domain.Entities.DailyJournal", b =>
+                {
+                    b.Navigation("Screenshots");
                 });
 
             modelBuilder.Entity("trading_journel_app.Domain.Entities.Strategy", b =>

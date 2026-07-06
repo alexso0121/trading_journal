@@ -21,9 +21,19 @@ public sealed class DailyJournalConfiguration : IEntityTypeConfiguration<DailyJo
             .HasColumnName("journal_date_utc")
             .IsRequired();
 
+        builder.Property(j => j.TradeIdea)
+            .HasColumnName("trade_idea")
+            .HasMaxLength(4000)
+            .IsRequired();
+
+        builder.Property(j => j.Reflection)
+            .HasColumnName("reflection")
+            .HasMaxLength(4000)
+            .IsRequired();
+
         builder.Property(j => j.Note)
             .HasColumnName("note")
-            .HasMaxLength(2000)
+            .HasMaxLength(8000)
             .IsRequired();
 
         builder.Property(j => j.CreatedAtUtc)
@@ -33,5 +43,10 @@ public sealed class DailyJournalConfiguration : IEntityTypeConfiguration<DailyJo
         builder.Property(j => j.UpdatedAtUtc)
             .HasColumnName("updated_at_utc")
             .IsRequired();
+
+        builder.HasMany(j => j.Screenshots)
+            .WithOne(s => s.DailyJournal)
+            .HasForeignKey(s => s.DailyJournalId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

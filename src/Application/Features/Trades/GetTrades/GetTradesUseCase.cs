@@ -16,6 +16,8 @@ public sealed class GetTradesUseCase(ITradeRepository tradeRepository)
             request.PageSize,
             request.StrategyId,
             request.TradingDateUtc,
+            request.StartDateUtc,
+            request.EndDateUtc,
             cancellationToken);
 
         return new PagedResponse<TradeResponse>(

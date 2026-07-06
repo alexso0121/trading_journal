@@ -10,7 +10,7 @@ public sealed class GetTradesValidator : AbstractValidator<GetTradesRequest>
             .GreaterThan(0);
 
         RuleFor(x => x.PageSize)
-            .InclusiveBetween(1, 100);
+            .InclusiveBetween(1, 200);
 
         RuleFor(x => x.StrategyId)
             .Must(strategyId => strategyId is null || strategyId != Guid.Empty)

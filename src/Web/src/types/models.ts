@@ -13,10 +13,16 @@ export type Strategy = {
   userId: string;
   name: string;
   description: string;
+  tags: StrategyTag[];
   version: number;
   createdAtUtc: string;
   updatedAtUtc: string;
   trades: StrategyTrade[];
+};
+
+export type StrategyTag = {
+  id: string;
+  name: string;
 };
 
 export type Trade = {
@@ -25,10 +31,13 @@ export type Trade = {
   userId: string;
   ticker: string;
   market: string;
+  asset: number;
   direction: number;
   status: number;
   entryPrice: number;
   quantity: number;
+  pnl: number;
+  comments: string;
   openTimeUtc: string;
   closeTimeUtc: string | null;
   version: number;
@@ -40,9 +49,22 @@ export type DailyJournal = {
   id: string;
   userId: string;
   journalDateUtc: string;
+  tradeIdea: string;
+  reflection: string;
   note: string;
+  screenshots: DailyJournalScreenshot[];
   createdAtUtc: string;
   updatedAtUtc: string;
+};
+
+export type DailyJournalScreenshot = {
+  id: string;
+  storageKey: string;
+  fileName: string;
+  contentType: string;
+  downloadUrl: string;
+  expiresAtUtc: string;
+  createdAtUtc: string;
 };
 
 export type AuditLog = {
@@ -73,6 +95,8 @@ export type GetTradesParams = {
   pageSize?: number;
   strategyId?: string;
   tradingDateUtc?: string;
+  startDateUtc?: string;
+  endDateUtc?: string;
 };
 
 export type GetAuditLogsParams = {
@@ -83,6 +107,7 @@ export type GetAuditLogsParams = {
 export type CreateStrategyPayload = {
   name: string;
   description: string;
+  tags: string[];
 };
 
 export type UpdateStrategyPayload = CreateStrategyPayload & {
@@ -93,9 +118,12 @@ export type CreateTradePayload = {
   strategyId: string;
   ticker: string;
   market: string;
+  asset: number;
   direction: number;
   entryPrice: number;
   quantity: number;
+  pnl: number;
+  comments: string;
   openTimeUtc: string;
 };
 
@@ -103,10 +131,13 @@ export type UpdateTradePayload = {
   strategyId: string;
   ticker: string;
   market: string;
+  asset: number;
   direction: number;
   status: number;
   entryPrice: number;
   quantity: number;
+  pnl: number;
+  comments: string;
   openTimeUtc: string;
   closeTimeUtc: string | null;
   lastKnownVersion: number;
@@ -114,10 +145,36 @@ export type UpdateTradePayload = {
 
 export type CreateDailyJournalPayload = {
   journalDateUtc: string;
-  note: string;
+  tradeIdea: string;
+  reflection: string;
 };
 
 export type UpdateDailyJournalPayload = {
   journalDateUtc: string;
-  note: string;
+  tradeIdea: string;
+  reflection: string;
+};
+
+export type CreateJournalScreenshotUploadUrlPayload = {
+  fileName: string;
+  contentType: string;
+};
+
+export type JournalScreenshotUploadUrlResponse = {
+  storageKey: string;
+  uploadUrl: string;
+  downloadUrl: string;
+  expiresAtUtc: string;
+};
+
+export type CreateStrategyContentImageUploadUrlPayload = {
+  fileName: string;
+  contentType: string;
+};
+
+export type StrategyContentImageUploadUrlResponse = {
+  storageKey: string;
+  uploadUrl: string;
+  downloadUrl: string;
+  expiresAtUtc: string;
 };

@@ -15,7 +15,7 @@ public sealed class UpdateDailyJournalUseCase(IDailyJournalRepository dailyJourn
             return null;
         }
 
-        journal.Update(request.JournalDateUtc, request.Note);
+        journal.Update(request.JournalDateUtc, request.TradeIdea, request.Reflection);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return DailyJournalResponse.FromEntity(journal);
     }

@@ -25,6 +25,7 @@ public sealed class Strategy
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
     public ICollection<Trade> Trades { get; } = new List<Trade>();
+    public ICollection<StrategyTag> Tags { get; } = new List<StrategyTag>();
 
     public static Strategy Create(Guid userId, string name, string description)
     {
@@ -41,6 +42,17 @@ public sealed class Strategy
         Name = name.Trim();
         Description = description.Trim();
         Version += 1;
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public void ReplaceTags(IReadOnlyCollection<StrategyTag> tags)
+    {
+        Tags.Clear();
+        foreach (var tag in tags)
+        {
+            Tags.Add(tag);
+        }
+
         UpdatedAtUtc = DateTime.UtcNow;
     }
 }

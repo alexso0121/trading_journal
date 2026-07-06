@@ -12,9 +12,12 @@ public sealed class CreateTradeUseCase(ITradeRepository tradeRepository, IUnitOf
             userId,
             request.Ticker,
             request.Market,
+            request.Asset,
             request.Direction,
             request.EntryPrice,
             request.Quantity,
+            request.Pnl,
+            request.Comments,
             request.OpenTimeUtc);
 
         await tradeRepository.AddAsync(trade, cancellationToken);

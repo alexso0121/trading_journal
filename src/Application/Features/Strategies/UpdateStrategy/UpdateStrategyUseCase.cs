@@ -37,6 +37,37 @@ public sealed class UpdateStrategyUseCase(IStrategyRepository strategyRepository
 
         strategy.Update(request.Name, request.Description);
 
+        var requestedTags = request.Tags
+            .Select(name => name.Trim())
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .DistinctBy(Domain.Entities.StrategyTag.Normalize)
+            .ToList();
+
+        if (requestedTags.Count == 0)
+        {
+            strategy.ReplaceTags([]);
+        }
+        else
+        {
+            var normalizedNames = requestedTags.Select(Domain.Entities.StrategyTag.Normalize).ToList();
+            var existingTags = await strategyRepository.GetTagsByNormalizedNamesAsync(strategy.UserId, normalizedNames,
+                cancellationToken);
+            var resolvedTags = existingTags.ToDictionary(t => t.NormalizedName, t => t);
+
+            foreach (var tagName in requestedTags)
+            {
+                var normalized = Domain.Entities.StrategyTag.Normalize(tagName);
+                if (!resolvedTags.TryGetValue(normalized, out var tag))
+                {
+                    tag = Domain.Entities.StrategyTag.Create(strategy.UserId, tagName);
+                    await strategyRepository.AddTagAsync(tag, cancellationToken);
+                    resolvedTags[normalized] = tag;
+                }
+            }
+
+            strategy.ReplaceTags(resolvedTags.Values.ToList());
+        }
+
         try
         {
             await unitOfWork.SaveChangesAsync(cancellationToken);

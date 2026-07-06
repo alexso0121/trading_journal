@@ -41,9 +41,12 @@ public class TradeRepositoriesTest : IClassFixture<PostgreSqlFixture>
                      userId,
              "AAPL",
              "NAS",
+               TradeAsset.Stock,
              TradeDirection.Long,
              13,
              3,
+               0,
+               string.Empty,
              new DateTime(2024, 6, 1, 14, 30, 0, DateTimeKind.Utc)
 
 

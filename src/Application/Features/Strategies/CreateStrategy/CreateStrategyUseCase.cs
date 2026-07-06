@@ -17,6 +17,33 @@ public sealed class CreateStrategyUseCase(IStrategyRepository strategyRepository
         }
 
         var strategy = Strategy.Create(userId, request.Name, request.Description);
+
+        var requestedTags = request.Tags
+            .Select(name => name.Trim())
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .DistinctBy(Domain.Entities.StrategyTag.Normalize)
+            .ToList();
+
+        if (requestedTags.Count > 0)
+        {
+            var normalizedNames = requestedTags.Select(Domain.Entities.StrategyTag.Normalize).ToList();
+            var existingTags = await strategyRepository.GetTagsByNormalizedNamesAsync(userId, normalizedNames, cancellationToken);
+            var resolvedTags = existingTags.ToDictionary(t => t.NormalizedName, t => t);
+
+            foreach (var tagName in requestedTags)
+            {
+                var normalized = Domain.Entities.StrategyTag.Normalize(tagName);
+                if (!resolvedTags.TryGetValue(normalized, out var tag))
+                {
+                    tag = Domain.Entities.StrategyTag.Create(userId, tagName);
+                    await strategyRepository.AddTagAsync(tag, cancellationToken);
+                    resolvedTags[normalized] = tag;
+                }
+            }
+
+            strategy.ReplaceTags(resolvedTags.Values.ToList());
+        }
+
         await strategyRepository.AddAsync(strategy, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return StrategyResponse.FromEntity(strategy);

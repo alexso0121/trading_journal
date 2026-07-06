@@ -15,10 +15,13 @@ type TradeFormState = {
   strategyId: string;
   ticker: string;
   market: string;
+  asset: number;
   direction: number;
   status: number;
   entryPrice: string;
   quantity: string;
+  pnl: string;
+  comments: string;
   openTimeUtc: string;
   closeTimeUtc: string;
 };
@@ -27,10 +30,13 @@ const emptyForm: TradeFormState = {
   strategyId: '',
   ticker: '',
   market: '',
+  asset: 1,
   direction: 1,
   status: 1,
   entryPrice: '',
   quantity: '',
+  pnl: '0',
+  comments: '',
   openTimeUtc: '',
   closeTimeUtc: '',
 };
@@ -131,9 +137,12 @@ export const TradesPage = () => {
         strategyId: createForm.strategyId,
         ticker: createForm.ticker.trim(),
         market: createForm.market.trim(),
+        asset: createForm.asset,
         direction: createForm.direction,
         entryPrice: Number(createForm.entryPrice),
         quantity: Number(createForm.quantity),
+        pnl: Number(createForm.pnl || 0),
+        comments: createForm.comments,
         openTimeUtc: new Date(createForm.openTimeUtc).toISOString(),
       });
       setCreateOpen(false);
@@ -172,10 +181,13 @@ export const TradesPage = () => {
       strategyId: trade.strategyId,
       ticker: trade.ticker,
       market: trade.market,
+      asset: trade.asset,
       direction: trade.direction,
       status: trade.status,
       entryPrice: String(trade.entryPrice),
       quantity: String(trade.quantity),
+      pnl: String(trade.pnl),
+      comments: trade.comments,
       openTimeUtc: toDateTimeLocal(trade.openTimeUtc),
       closeTimeUtc: trade.closeTimeUtc ? toDateTimeLocal(trade.closeTimeUtc) : '',
     });
@@ -205,10 +217,13 @@ export const TradesPage = () => {
         strategyId: editForm.strategyId,
         ticker: editForm.ticker.trim(),
         market: editForm.market.trim(),
+        asset: editForm.asset,
         direction: editForm.direction,
         status: editForm.status,
         entryPrice: Number(editForm.entryPrice),
         quantity: Number(editForm.quantity),
+        pnl: Number(editForm.pnl || 0),
+        comments: editForm.comments,
         openTimeUtc: new Date(editForm.openTimeUtc).toISOString(),
         closeTimeUtc: editForm.closeTimeUtc ? new Date(editForm.closeTimeUtc).toISOString() : null,
         lastKnownVersion: editing.version,
@@ -332,6 +347,20 @@ export const TradesPage = () => {
               render: (trade) => (trade.direction === 1 ? 'Long' : 'Short'),
             },
             {
+              accessor: 'asset',
+              title: 'Asset',
+              render: (trade) =>
+                trade.asset === 1
+                  ? 'Stock'
+                  : trade.asset === 2
+                    ? 'Future'
+                    : trade.asset === 3
+                      ? 'Contract'
+                      : trade.asset === 4
+                        ? 'Crypto'
+                        : 'Forex',
+            },
+            {
               accessor: 'status',
               title: 'Status',
               render: (trade) =>
@@ -344,6 +373,10 @@ export const TradesPage = () => {
             {
               accessor: 'quantity',
               title: 'Qty',
+            },
+            {
+              accessor: 'pnl',
+              title: 'PnL',
             },
             {
               accessor: 'openTimeUtc',
@@ -416,6 +449,17 @@ export const TradesPage = () => {
           />
           <select
             className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+            value={createForm.asset}
+            onChange={(e) => setCreateForm((prev) => ({ ...prev, asset: Number(e.target.value) }))}
+          >
+            <option value={1}>Stock</option>
+            <option value={2}>Future</option>
+            <option value={3}>Contract</option>
+            <option value={4}>Crypto</option>
+            <option value={5}>Forex</option>
+          </select>
+          <select
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
             value={createForm.direction}
             onChange={(e) =>
               setCreateForm((prev) => ({ ...prev, direction: Number(e.target.value) }))
@@ -442,9 +486,23 @@ export const TradesPage = () => {
           />
           <input
             className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+            type="number"
+            step="0.000001"
+            placeholder="PnL"
+            value={createForm.pnl}
+            onChange={(e) => setCreateForm((prev) => ({ ...prev, pnl: e.target.value }))}
+          />
+          <input
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
             type="datetime-local"
             value={createForm.openTimeUtc}
             onChange={(e) => setCreateForm((prev) => ({ ...prev, openTimeUtc: e.target.value }))}
+          />
+          <textarea
+            className="md:col-span-2 rounded-md border border-slate-300 px-3 py-2 text-sm"
+            placeholder="Comments"
+            value={createForm.comments}
+            onChange={(e) => setCreateForm((prev) => ({ ...prev, comments: e.target.value }))}
           />
         </div>
         <div className="mt-3">
@@ -492,6 +550,17 @@ export const TradesPage = () => {
           />
           <select
             className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+            value={editForm.asset}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, asset: Number(e.target.value) }))}
+          >
+            <option value={1}>Stock</option>
+            <option value={2}>Future</option>
+            <option value={3}>Contract</option>
+            <option value={4}>Crypto</option>
+            <option value={5}>Forex</option>
+          </select>
+          <select
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
             value={editForm.direction}
             onChange={(e) =>
               setEditForm((prev) => ({ ...prev, direction: Number(e.target.value) }))
@@ -525,6 +594,13 @@ export const TradesPage = () => {
           />
           <input
             className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+            type="number"
+            step="0.000001"
+            value={editForm.pnl}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, pnl: e.target.value }))}
+          />
+          <input
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
             type="datetime-local"
             value={editForm.openTimeUtc}
             onChange={(e) => setEditForm((prev) => ({ ...prev, openTimeUtc: e.target.value }))}
@@ -534,6 +610,12 @@ export const TradesPage = () => {
             type="datetime-local"
             value={editForm.closeTimeUtc}
             onChange={(e) => setEditForm((prev) => ({ ...prev, closeTimeUtc: e.target.value }))}
+          />
+          <textarea
+            className="md:col-span-2 rounded-md border border-slate-300 px-3 py-2 text-sm"
+            placeholder="Comments"
+            value={editForm.comments}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, comments: e.target.value }))}
           />
         </div>
         <div className="mt-3">

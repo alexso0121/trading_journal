@@ -1,15 +1,19 @@
 import axios, { type AxiosError } from 'axios';
 import type {
   AuditLog,
+  CreateJournalScreenshotUploadUrlPayload,
   CreateDailyJournalPayload,
+  CreateStrategyContentImageUploadUrlPayload,
   CreateStrategyPayload,
   CreateTradePayload,
   DailyJournal,
   GetAuditLogsParams,
   GetStrategiesParams,
   GetTradesParams,
+  JournalScreenshotUploadUrlResponse,
   PagedResponse,
   Strategy,
+  StrategyContentImageUploadUrlResponse,
   Trade,
   UpdateDailyJournalPayload,
   UpdateStrategyPayload,
@@ -125,6 +129,8 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
           pageSize: params.pageSize ?? 20,
           strategyId: params.strategyId || undefined,
           tradingDateUtc: params.tradingDateUtc || undefined,
+          startDateUtc: params.startDateUtc || undefined,
+          endDateUtc: params.endDateUtc || undefined,
         },
       });
       return toPagedResponse<Trade>(response.data);
@@ -196,6 +202,54 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
       const response = await api.put<DailyJournal>(`/api/dailyjournals/${journalId}`, payload, {
         headers: await authHeader(resolveToken),
       });
+      return response.data;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+
+  async createDailyJournalScreenshotUploadUrl(
+    journalId: string,
+    payload: CreateJournalScreenshotUploadUrlPayload
+  ): Promise<JournalScreenshotUploadUrlResponse> {
+    try {
+      const response = await api.post<JournalScreenshotUploadUrlResponse>(
+        `/api/dailyjournals/${journalId}/screenshot/upload-url`,
+        payload,
+        {
+          headers: await authHeader(resolveToken),
+        }
+      );
+      return response.data;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+
+  async uploadFileToPresignedUrl(uploadUrl: string, file: File): Promise<void> {
+    try {
+      await axios.put(uploadUrl, file, {
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+
+  async createStrategyContentImageUploadUrl(
+    strategyId: string,
+    payload: CreateStrategyContentImageUploadUrlPayload
+  ): Promise<StrategyContentImageUploadUrlResponse> {
+    try {
+      const response = await api.post<StrategyContentImageUploadUrlResponse>(
+        `/api/strategies/${strategyId}/content-image/upload-url`,
+        payload,
+        {
+          headers: await authHeader(resolveToken),
+        }
+      );
       return response.data;
     } catch (error) {
       throw toApiError(error);

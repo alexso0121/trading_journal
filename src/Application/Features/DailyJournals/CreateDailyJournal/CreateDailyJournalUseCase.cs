@@ -7,7 +7,7 @@ public sealed class CreateDailyJournalUseCase(IDailyJournalRepository dailyJourn
 {
     public async Task<DailyJournalResponse> ExecuteAsync(Guid userId, CreateDailyJournalRequest request, CancellationToken cancellationToken)
     {
-        var dailyJournal = DailyJournal.Create(userId, request.JournalDateUtc, request.Note);
+        var dailyJournal = DailyJournal.Create(userId, request.JournalDateUtc, request.TradeIdea, request.Reflection);
         await dailyJournalRepository.AddAsync(dailyJournal, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return DailyJournalResponse.FromEntity(dailyJournal);

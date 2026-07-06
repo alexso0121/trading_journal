@@ -12,9 +12,15 @@ public sealed class StrategyRepository(TradingJournalDbContext dbContext) : IStr
         await dbContext.Strategies.AddAsync(strategy, cancellationToken);
     }
 
+    public async Task AddTagAsync(StrategyTag tag, CancellationToken cancellationToken)
+    {
+        await dbContext.StrategyTags.AddAsync(tag, cancellationToken);
+    }
+
     public Task<Strategy?> GetByIdAsync(Guid strategyId, CancellationToken cancellationToken) =>
         dbContext.Strategies
             .Include(s => s.Trades)
+            .Include(s => s.Tags)
             .FirstOrDefaultAsync(s => s.Id == strategyId, cancellationToken);
 
     public async Task<IReadOnlyCollection<Strategy>> GetAllByUserIdAsync(Guid userId, CancellationToken cancellationToken)
@@ -22,6 +28,7 @@ public sealed class StrategyRepository(TradingJournalDbContext dbContext) : IStr
         var strategies = await dbContext.Strategies
             .AsNoTracking()
             .Include(s => s.Trades)
+            .Include(s => s.Tags)
             .Where(s => s.UserId == userId)
             .OrderBy(s => s.Name)
             .ToListAsync(cancellationToken);
@@ -38,6 +45,7 @@ public sealed class StrategyRepository(TradingJournalDbContext dbContext) : IStr
         var query = dbContext.Strategies
             .AsNoTracking()
             .Include(s => s.Trades)
+            .Include(s => s.Tags)
             .Where(s => s.UserId == userId);
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -52,6 +60,21 @@ public sealed class StrategyRepository(TradingJournalDbContext dbContext) : IStr
 
     public Task<bool> HasTradesAsync(Guid strategyId, CancellationToken cancellationToken) =>
         dbContext.Trades.AnyAsync(t => t.StrategyId == strategyId, cancellationToken);
+
+    public async Task<IReadOnlyCollection<StrategyTag>> GetTagsByNormalizedNamesAsync(
+        Guid userId,
+        IReadOnlyCollection<string> normalizedNames,
+        CancellationToken cancellationToken)
+    {
+        if (normalizedNames.Count == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.StrategyTags
+            .Where(t => t.UserId == userId && normalizedNames.Contains(t.NormalizedName))
+            .ToListAsync(cancellationToken);
+    }
 
     public void Delete(Strategy strategy) => dbContext.Strategies.Remove(strategy);
 

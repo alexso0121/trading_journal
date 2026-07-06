@@ -10,8 +10,10 @@ public sealed class UpdateTradeValidator : AbstractValidator<UpdateTradeRequest>
         RuleFor(x => x.StrategyId).NotEmpty();
         RuleFor(x => x.Ticker).NotEmpty();
         RuleFor(x => x.Market).NotEmpty();
+        RuleFor(x => x.Asset).IsInEnum();
         RuleFor(x => x.EntryPrice).GreaterThan(0);
         RuleFor(x => x.Quantity).GreaterThan(0);
+        RuleFor(x => x.Comments).MaximumLength(4000);
         RuleFor(x => x.LastKnownVersion).GreaterThan(0);
         RuleFor(x => x.OpenTimeUtc).LessThanOrEqualTo(DateTime.UtcNow);
         RuleFor(x => x)

@@ -31,6 +31,10 @@ public sealed class TradeConfiguration : IEntityTypeConfiguration<Trade>
             .HasMaxLength(50)
             .IsRequired();
 
+        builder.Property(t => t.Asset)
+            .HasColumnName("asset")
+            .IsRequired();
+
         builder.Property(t => t.Direction)
             .HasColumnName("direction")
             .IsRequired();
@@ -47,6 +51,16 @@ public sealed class TradeConfiguration : IEntityTypeConfiguration<Trade>
         builder.Property(t => t.Quantity)
             .HasColumnName("quantity")
             .HasPrecision(18, 6)
+            .IsRequired();
+
+        builder.Property(t => t.Pnl)
+            .HasColumnName("pnl")
+            .HasPrecision(18, 6)
+            .IsRequired();
+
+        builder.Property(t => t.Comments)
+            .HasColumnName("comments")
+            .HasMaxLength(4000)
             .IsRequired();
 
         builder.Property(t => t.OpenTimeUtc)

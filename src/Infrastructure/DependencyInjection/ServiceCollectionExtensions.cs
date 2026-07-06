@@ -3,6 +3,9 @@ using trading_journel_app.Application.Repositories;
 using trading_journel_app.Infrastructure.Persistence;
 using trading_journel_app.Infrastructure.Persistence.Interceptors;
 using trading_journel_app.Infrastructure.Repositories;
+using trading_journel_app.Application.Common.Storage;
+using trading_journel_app.Infrastructure.Storage;
+using Amazon.S3;
 
 namespace trading_journel_app.Infrastructure.DependencyInjection;
 
@@ -25,6 +28,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDailyJournalRepository, DailyJournalRepository>();
         services.AddScoped<IStrategyRepository, StrategyRepository>();
         services.AddScoped<ITradeRepository, TradeRepository>();
+        services.AddDefaultAWSOptions(configuration.GetAWSOptions());
+        services.AddAWSService<IAmazonS3>();
+        services.Configure<S3ScreenshotStorageOptions>(configuration.GetSection(S3ScreenshotStorageOptions.SectionName));
+        services.AddScoped<IJournalScreenshotStorage, StubJournalScreenshotStorage>();
+        services.AddScoped<IStrategyContentImageStorage, S3StrategyContentImageStorage>();
 
         return services;
     }
