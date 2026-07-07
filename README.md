@@ -160,7 +160,7 @@ You only need this if you choose Cloudflare Pages instead of Vercel.
 - Build command: `npm run build`
 - Output directory: `dist`
 - Required env var: `VITE_API_BASE_URL=https://your-fly-api.fly.dev`
-- SPA routing fallback is already included via [src/Web/public/\_redirects](src/Web/public/_redirects)
+- Cloudflare Pages already handles SPA fallback when there is no top-level `404.html`, so no custom `_redirects` file is needed.
 
 ### GitHub Actions
 
@@ -225,6 +225,6 @@ Deployment files included in this repo:
 - [fly.toml](fly.toml)
 - [.github/workflows/deploy.yml](.github/workflows/deploy.yml)
 - [src/Web/vercel.json](src/Web/vercel.json)
-- [src/Web/public/\_redirects](src/Web/public/_redirects)
+
 
 For the full step-by-step deployment guide, see [docs/deployment.md](docs/deployment.md).

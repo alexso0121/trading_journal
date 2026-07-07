@@ -109,9 +109,7 @@ You do not need Cloudflare Pages if you are deploying the frontend to Vercel.
 
 If you want the same frontend to work on Cloudflare Pages instead, this repo now includes:
 
-- `src/Web/public/_redirects`
-
-That file is required because the app uses `BrowserRouter`, and direct requests like `/calendar` or `/strategies` must fall back to `index.html`.
+Cloudflare Pages already treats the app as a single-page application when there is no top-level `404.html`, so direct requests like `/calendar` or `/strategies` fall back to the SPA automatically.
 
 Cloudflare Pages settings:
 
