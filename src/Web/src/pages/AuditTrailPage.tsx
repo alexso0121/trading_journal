@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { DataTable } from 'mantine-datatable';
 import 'mantine-datatable/styles.css';
 import { createApiClient } from '../lib/apiClient';
+import { useToast } from '../components/ToastProvider';
 import { useAuth } from '../providers/AuthProvider';
 import type { AuditLog } from '../types/models';
 
@@ -15,6 +16,7 @@ const trimPayload = (payloadJson: string) => {
 export const AuditTrailPage = () => {
   const { getToken } = useAuth();
   const api = useMemo(() => createApiClient(getToken), [getToken]);
+  const toast = useToast();
 
   const [items, setItems] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(false);
@@ -22,6 +24,15 @@ export const AuditTrailPage = () => {
   const [page, setPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(20);
   const [totalRecords, setTotalRecords] = useState(0);
+
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+
+    toast.error(error, 'Audit trail');
+    setError(null);
+  }, [error, toast]);
 
   const loadData = async (targetPage = page, targetPageSize = recordsPerPage) => {
     setLoading(true);
@@ -65,7 +76,6 @@ export const AuditTrailPage = () => {
         </button>
       </div>
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {loading ? <p className="text-sm text-slate-600">Loading...</p> : null}
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">

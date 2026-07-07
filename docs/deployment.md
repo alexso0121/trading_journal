@@ -31,11 +31,13 @@ This usually creates `DATABASE_URL`. For this app, also set `ConnectionStrings__
 
 ### 4. Set Fly secrets
 
+These are runtime secrets for the Fly app. The Docker image does not bake them in; Fly injects them when the container starts.
+
 ```bash
 fly secrets set \
   ConnectionStrings__TradingJournalDb="Host=...;Port=5432;Database=...;Username=...;Password=...;SSL Mode=Require;Trust Server Certificate=true" \
   Firebase__ProjectId="your-firebase-project-id" \
-  FIREBASE_CREDENTIALS_JSON='{"type":"service_account",...}' \
+  Firebase__CredentialsJsonBase64="$(cat service-account.json | base64 | tr -d '\n')" \
   Cors__AllowedOrigins__0="https://your-frontend-domain.vercel.app" \
   Storage__S3__BucketName="your-r2-bucket" \
   Storage__S3__ServiceUrl="https://<accountid>.r2.cloudflarestorage.com" \
@@ -48,6 +50,8 @@ fly secrets set \
   Storage__S3__DownloadUrlExpiryMinutes="60" \
   Storage__S3__KeyPrefix="journals"
 ```
+
+The server can decode `Firebase__CredentialsJsonBase64` directly. You do not need to write the Firebase JSON to a file in the container.
 
 ### 5. Deploy API
 
@@ -143,3 +147,5 @@ Required secrets:
 Required repository variable:
 
 - `VITE_API_BASE_URL`
+
+If you want to manage the API runtime values from GitHub as documentation only, keep them aligned with the Fly secret names listed above. The workflow itself only needs the deploy tokens plus `VITE_API_BASE_URL` for the frontend build.

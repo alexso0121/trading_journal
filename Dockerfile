@@ -11,11 +11,10 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0-preview AS runtime
 WORKDIR /app
 
 ENV ASPNETCORE_URLS=http://+:8080 \
-    ASPNETCORE_ENVIRONMENT=Production \
-    Firebase__CredentialsPath=/app/secrets/firebase-credentials.json
+    ASPNETCORE_ENVIRONMENT=Production
 
 COPY --from=build /app/publish .
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "mkdir -p /app/secrets && if [ -n \"$FIREBASE_CREDENTIALS_JSON\" ]; then printf '%s' \"$FIREBASE_CREDENTIALS_JSON\" > /app/secrets/firebase-credentials.json; fi && exec dotnet trading_journel_app.dll"]
+CMD ["dotnet", "trading_journel_app.dll"]

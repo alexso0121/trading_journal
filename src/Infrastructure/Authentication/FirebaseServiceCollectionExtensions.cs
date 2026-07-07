@@ -2,6 +2,7 @@ using FirebaseAdmin;
 using FirebaseAdmin.Auth;
 using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication;
+using System.Text;
 
 namespace trading_journel_app.Infrastructure.Authentication;
 
@@ -19,7 +20,22 @@ public static class FirebaseServiceCollectionExtensions
             }
 
             var appOptions = new AppOptions();
-            if (!string.IsNullOrWhiteSpace(firebaseOptions.CredentialsPath))
+            if (!string.IsNullOrWhiteSpace(firebaseOptions.CredentialsJsonBase64))
+            {
+                try
+                {
+                    var credentialJson = Encoding.UTF8.GetString(
+                        Convert.FromBase64String(firebaseOptions.CredentialsJsonBase64));
+                    appOptions.Credential = GoogleCredential.FromJson(credentialJson);
+                }
+                catch (FormatException ex)
+                {
+                    throw new InvalidOperationException(
+                        "Firebase:CredentialsJsonBase64 is not valid base64.",
+                        ex);
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(firebaseOptions.CredentialsPath))
             {
                 appOptions.Credential = GoogleCredential.FromFile(firebaseOptions.CredentialsPath);
             }

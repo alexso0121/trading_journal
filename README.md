@@ -124,11 +124,11 @@ Set the frontend API base URL with `VITE_API_BASE_URL` if needed for your enviro
 1. Create the Fly app.
 2. Create Fly Postgres.
 3. Attach or manually configure the PostgreSQL connection string.
-4. Set Fly secrets for:
+4. Set Fly secrets for runtime configuration. The Docker image reads these from the Fly app environment at startup, so they do not need to be baked into the image.
 
 - `ConnectionStrings__TradingJournalDb`
 - `Firebase__ProjectId`
-- `FIREBASE_CREDENTIALS_JSON`
+- `Firebase__CredentialsJsonBase64`
 - `Cors__AllowedOrigins__0`
 - `Storage__S3__BucketName`
 - `Storage__S3__ServiceUrl`
@@ -175,12 +175,33 @@ And this repository variable:
 
 - `VITE_API_BASE_URL`
 
+If you want to keep deployment values in GitHub for local workflow use, mirror only the frontend build URL there. The API secrets should stay in Fly secrets, not in the GitHub workflow environment.
+
 ## Firebase and CORS Checklist
 
 For production, make sure you add your deployed frontend domain to:
 
 - Firebase Authentication authorized domains
 - backend CORS allowed origins
+
+For Firebase service account credentials, prefer passing the full JSON as a base64-encoded string via `Firebase__CredentialsJsonBase64` instead of mounting or writing a credentials file.
+
+Fly secret names used by the API container:
+
+- `ConnectionStrings__TradingJournalDb`
+- `Firebase__ProjectId`
+- `Firebase__CredentialsJsonBase64`
+- `Cors__AllowedOrigins__0`
+- `Storage__S3__BucketName`
+- `Storage__S3__ServiceUrl`
+- `Storage__S3__AccessKeyId`
+- `Storage__S3__SecretAccessKey`
+- `Storage__S3__AuthenticationRegion`
+- `Storage__S3__ForcePathStyle`
+- `Storage__S3__PublicBaseUrl`
+- `Storage__S3__UploadUrlExpiryMinutes`
+- `Storage__S3__DownloadUrlExpiryMinutes`
+- `Storage__S3__KeyPrefix`
 
 ## Key Design Decisions
 

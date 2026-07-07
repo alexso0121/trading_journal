@@ -11,6 +11,7 @@ import {
 } from '../components/CreateTradeDialog';
 import { Dialog } from '../components/Dialog';
 import { StrategyRichTextEditor } from '../components/StrategyRichTextEditor';
+import { useToast } from '../components/ToastProvider';
 import { createApiClient } from '../lib/apiClient';
 import {
   extractStoredFileIds,
@@ -88,6 +89,7 @@ const normalizeCalendarRange = (
 export const TradeCalendarPage = () => {
   const { getToken } = useAuth();
   const api = useMemo(() => createApiClient(getToken), [getToken]);
+  const toast = useToast();
 
   const [calendarTrades, setCalendarTrades] = useState<Trade[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -113,6 +115,15 @@ export const TradeCalendarPage = () => {
   const [saving, setSaving] = useState(false);
   const suppressNextSlotSelectionRef = useRef(false);
   const [pendingJournalFileIds, setPendingJournalFileIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+
+    toast.error(error, 'Calendar');
+    setError(null);
+  }, [error, toast]);
 
   const loadCalendarTrades = async (rangeStart: Date, rangeEnd: Date) => {
     setLoadingCalendarTrades(true);
@@ -408,7 +419,6 @@ export const TradeCalendarPage = () => {
         </Group>
       </div>
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {loading ? <p className="text-sm text-slate-600">Loading...</p> : null}
 
       <div className="rounded-lg border border-slate-200 bg-white p-3">

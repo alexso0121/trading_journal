@@ -9,6 +9,7 @@ import {
 } from '../components/CreateTradeDialog';
 import { Dialog } from '../components/Dialog';
 import { ApiError, createApiClient } from '../lib/apiClient';
+import { useToast } from '../components/ToastProvider';
 import { useAuth } from '../providers/AuthProvider';
 import type { Strategy, Trade } from '../types/models';
 
@@ -41,6 +42,7 @@ const toDateTimeLocal = (isoUtc: string) => {
 export const TradesPage = () => {
   const { getToken } = useAuth();
   const api = useMemo(() => createApiClient(getToken), [getToken]);
+  const toast = useToast();
 
   const [trades, setTrades] = useState<Trade[]>([]);
   const [strategies, setStrategies] = useState<Strategy[]>([]);
@@ -59,6 +61,15 @@ export const TradesPage = () => {
   const [createForm, setCreateForm] = useState<TradeCreateFormState>(emptyCreateForm);
   const [editForm, setEditForm] = useState<TradeFormState>(emptyForm);
   const [editing, setEditing] = useState<Trade | null>(null);
+
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+
+    toast.error(error, 'Trades');
+    setError(null);
+  }, [error, toast]);
 
   const loadData = async (
     targetPage = pagination.pageIndex + 1,
@@ -149,7 +160,14 @@ export const TradesPage = () => {
   };
 
   const onDelete = async (trade: Trade) => {
-    if (!window.confirm(`Delete trade "${trade.ticker}"?`)) {
+    const confirmed = await toast.confirm({
+      title: 'Delete trade',
+      message: `Delete trade "${trade.ticker}"? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -302,7 +320,6 @@ export const TradesPage = () => {
         </div>
       </div>
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {loading ? <p className="text-sm text-slate-600">Loading...</p> : null}
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">

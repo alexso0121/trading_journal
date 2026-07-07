@@ -1,20 +1,22 @@
-import { NavLink, Outlet } from 'react-router-dom'
-import { useAuth } from '../providers/AuthProvider'
+import { NavLink, Outlet } from 'react-router-dom';
+import { useAuth } from '../providers/AuthProvider';
 
 export const AppShell = () => {
-  const { signOut, user } = useAuth()
+  const { signOut, user } = useAuth();
 
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-slate-200 bg-white">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(168,85,247,0.08),_transparent_22%),radial-gradient(circle_at_top_right,_rgba(14,165,233,0.08),_transparent_24%),linear-gradient(180deg,_#f8fafc_0%,_#eef2ff_100%)] text-slate-900">
+      <header className="border-b border-white/10 bg-slate-950/95 text-white backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-6">
-            <h1 className="text-lg font-semibold">Trading Journal</h1>
+            <div className="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/80">
+              Trading Journal
+            </div>
             <nav className="flex gap-2">
               <NavLink
                 to="/calendar"
                 className={({ isActive }) =>
-                  `rounded-md px-3 py-1.5 text-sm ${isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'}`
+                  `rounded-full px-3 py-1.5 text-sm transition ${isActive ? 'bg-cyan-300 text-slate-950' : 'text-white/75 hover:bg-white/10 hover:text-white'}`
                 }
               >
                 Calendar
@@ -22,7 +24,7 @@ export const AppShell = () => {
               <NavLink
                 to="/strategies"
                 className={({ isActive }) =>
-                  `rounded-md px-3 py-1.5 text-sm ${isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'}`
+                  `rounded-full px-3 py-1.5 text-sm transition ${isActive ? 'bg-cyan-300 text-slate-950' : 'text-white/75 hover:bg-white/10 hover:text-white'}`
                 }
               >
                 Strategies
@@ -30,7 +32,7 @@ export const AppShell = () => {
               <NavLink
                 to="/trades"
                 className={({ isActive }) =>
-                  `rounded-md px-3 py-1.5 text-sm ${isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'}`
+                  `rounded-full px-3 py-1.5 text-sm transition ${isActive ? 'bg-cyan-300 text-slate-950' : 'text-white/75 hover:bg-white/10 hover:text-white'}`
                 }
               >
                 Trades
@@ -38,7 +40,7 @@ export const AppShell = () => {
               <NavLink
                 to="/audit-trail"
                 className={({ isActive }) =>
-                  `rounded-md px-3 py-1.5 text-sm ${isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'}`
+                  `rounded-full px-3 py-1.5 text-sm transition ${isActive ? 'bg-cyan-300 text-slate-950' : 'text-white/75 hover:bg-white/10 hover:text-white'}`
                 }
               >
                 Audit Trail
@@ -47,14 +49,14 @@ export const AppShell = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="hidden text-xs text-slate-600 md:inline">
+            <span className="hidden text-xs text-white/60 md:inline">
               {user?.email ?? user?.uid}
             </span>
             <button
               type="button"
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
+              className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-sm text-white transition hover:bg-white/15"
               onClick={() => {
-                void signOut()
+                void signOut();
               }}
             >
               Sign out
@@ -67,5 +69,5 @@ export const AppShell = () => {
         <Outlet />
       </main>
     </div>
-  )
-}
+  );
+};

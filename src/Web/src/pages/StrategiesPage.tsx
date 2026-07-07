@@ -10,6 +10,7 @@ import {
   normalizeStoredFileContentForSave,
   resolveStoredFileContent,
 } from '../lib/storedFileContent';
+import { useToast } from '../components/ToastProvider';
 import { useAuth } from '../providers/AuthProvider';
 import type { Strategy } from '../types/models';
 
@@ -32,6 +33,7 @@ const normalizeTag = (value: string) => value.trim().toLowerCase();
 export const StrategiesPage = () => {
   const { getToken } = useAuth();
   const api = useMemo(() => createApiClient(getToken), [getToken]);
+  const toast = useToast();
 
   const [items, setItems] = useState<Strategy[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,6 +50,15 @@ export const StrategiesPage = () => {
   const [editing, setEditing] = useState<Strategy | null>(null);
   const [pendingCreateFileIds, setPendingCreateFileIds] = useState<string[]>([]);
   const [pendingEditFileIds, setPendingEditFileIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+
+    toast.error(error, 'Strategies');
+    setError(null);
+  }, [error, toast]);
 
   const appendTag = (form: StrategyFormState): StrategyFormState => {
     const candidate = form.tagInput.trim();
@@ -139,7 +150,14 @@ export const StrategiesPage = () => {
   };
 
   const onDelete = async (strategy: Strategy) => {
-    if (!window.confirm(`Delete strategy "${strategy.name}"?`)) {
+    const confirmed = await toast.confirm({
+      title: 'Delete strategy',
+      message: `Delete strategy "${strategy.name}"? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -272,7 +290,6 @@ export const StrategiesPage = () => {
         </div>
       </div>
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {loading ? <p className="text-sm text-slate-600">Loading...</p> : null}
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">

@@ -6,4 +6,5 @@ public sealed class FirebaseAuthOptions
 
     public string? ProjectId { get; init; }
     public string? CredentialsPath { get; init; }
+    public string? CredentialsJsonBase64 { get; init; }
 }
