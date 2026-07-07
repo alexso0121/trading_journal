@@ -1,230 +1,94 @@
 # Trading Journal App
 
-A full-stack **trading journal application** built with **Clean Architecture**, designed to help traders track strategies, trades, daily notes, and performance with strong emphasis on **auditability**, **data integrity**, and **concurrent safety**.
+**A modern full-stack trading journal** built with **Clean Architecture** to help traders professionally track their strategies, trades, performance, and daily insights.
 
-## Project Highlights
-
-- **Clean Architecture** with clear separation of concerns
-- **Firebase Authentication** + custom token validation
-- **Optimistic Concurrency Control** using Entity Framework Core row versioning
-- **Comprehensive Audit Trail** for all CRUD operations
-- **Integration Tests** with **TestContainers** + PostgreSQL
-- **Cloudflare R2** for image storage (screenshots & charts)
-- **React + TypeScript** frontend with modern UI
-- **EF Core Code-First** with PostgreSQL migrations
+> Live Demo: [https://trading-journal-app.sohin0121.workers.dev](https://trading-journal-app.sohin0121.workers.dev)
 
 ---
 
-## Architecture Overview
+## Project Highlights
 
-The backend follows **Clean Architecture** (also known as Onion Architecture), ensuring:
+- **Enterprise-grade Clean Architecture** using C# + .NET  with strict layer separation
+- **React + TypeScript** modern frontend with rich UI/UX
+- **PostgreSQL** with EF Core for robust relational data management
+- **Firebase Authentication** + custom claims mapping
+- **Optimistic Concurrency Control** using EF Core row versioning
+- **Comprehensive Audit Trail** for full traceability
+- **TestContainers** for realistic integration testing
+- **Cloudflare R2** for scalable image storage
+- **Rich Text Editor** with image upload support (Tiptap)
+- **React + TypeScript** + modern calendar views
+- **CI/CD Automation with GitHub Actions**
 
-- **Independence** of the Domain layer from frameworks and infrastructure
-- **Testability** and maintainability
-- **Clear boundaries** between concerns
+---
 
-### Layer Structure
+## Screenshots
 
-| Layer              | Responsibility                                      | Key Technologies          |
-| ------------------ | --------------------------------------------------- | ------------------------- |
-| **Api**            | HTTP layer, controllers, middleware, OpenAPI        | ASP.NET Core, Swagger     |
-| **Application**    | Business logic, use cases, validation, DTOs         | MediatR, FluentValidation |
-| **Domain**         | Core business entities, value objects, domain rules | Pure C#                   |
-| **Infrastructure** | Data access, external services, persistence         | EF Core, Firebase, R2     |
+**Calendar View for Daily Trade Recording**
+![Calendar View](https://github.com/user-attachments/assets/b9cfc974-a0dc-4188-b2bc-e8c143d69913)
 
-**Request Flow:**
-Controller → Command/Query → Handler (Use Case) → Repository (Interface) → Repository Impl → EF Core → PostgreSQL
+**Rich Journal Entry with Image Support**
+![Journal Entry](https://github.com/user-attachments/assets/e444afc6-fa8d-46b0-bc45-adb15c3c38da)
 
-## Core Technical Features
+**Audit Trail System**
+![Audit Trail](https://github.com/user-attachments/assets/ad05927b-cb71-4243-ad5b-8e7c7c0bd9d9)
 
-- **Authentication**: Firebase Auth (JWT Bearer) with custom claims mapping
-- **Concurrency Control**: Optimistic concurrency using `RowVersion` + `lastKnownVersion` checks (returns 409 Conflict on conflict)
-- **Audit Trail**: Automatic logging of all entity changes (CreatedBy, CreatedAt, LastModifiedBy, LastModifiedAt, Original Values)
-- **Storage**: Cloudflare R2 for trade screenshots and chart images with presigned URLs
-- **Testing**:
-  - Unit tests
-  - Integration tests using **TestContainers** (real PostgreSQL containers)
-- **Database**: PostgreSQL with EF Core migrations and many-to-many relationships
-- **Frontend**: React + TypeScript + modern component architecture
+---
+
+## Architecture
+
+The application is built using **Clean Architecture** (Onion Architecture), ensuring high maintainability, testability, and clear boundaries.
+
+### Layered Structure
+
+| Layer              | Responsibility                              | Key Technologies                     |
+|--------------------|---------------------------------------------|--------------------------------------|
+| **Api**            | HTTP endpoints, middleware, validation      | ASP.NET Core, Swagger                |
+| **Application**    | Business logic, use cases, DTOs             | MediatR, FluentValidation            |
+| **Domain**         | Core entities, business rules, invariants  | Pure C#                              |
+| **Infrastructure** | Persistence, external services, auth        | EF Core, Firebase, Cloudflare R2     |
+
+**Request Flow**:  
+`Controller → Use Case → Repository → EF Core → PostgreSQL`
+
+---
+
+## Key Technical Features
+
+- **Optimistic Concurrency**: Prevents data corruption during concurrent updates
+- **Full Audit Trail**: Automatically tracks who changed what and when
+- **Rich Journaling**: Tiptap editor with inline image upload to R2
+- **Performance Metrics**: Auto-calculated Win Rate, Profit Factor, Expectancy
+- **Integration Testing**: Real PostgreSQL using **TestContainers**
+- **Scalable Storage**: Cloudflare R2 with presigned URLs
 
 ---
 
 ## Tech Stack
 
 **Backend**
-
-- .NET 10 preview / ASP.NET Core Web API
-- Entity Framework Core + Npgsql
-- Clean Architecture
-- Firebase Admin SDK
-- FluentValidation
+- .NET 8 + ASP.NET Core
+- Entity Framework Core + PostgreSQL
+- Clean Architecture + MediatR
+- Firebase Authentication
 - TestContainers
 
 **Frontend**
-
 - React 18 + TypeScript
-- React Calendar / React Big Calendar
+- Tiptap Rich Text Editor
+- React Big Calendar
 - Tailwind CSS
-- Tiptap (Rich Text Editor with image support)
 
 **Infrastructure**
-
 - PostgreSQL
-- Cloudflare R2 (Object Storage)
-- Docker-ready
+- Cloudflare R2
+- Fly.io / Cloudflare Pages
 
 ---
 
-## Project Structure
+## Local Development
 
-```text
-src/
-├── Api/                    # Controllers, Middleware, Filters
-├── Application/            # Use Cases, DTOs, Validators, Interfaces
-├── Domain/                 # Entities, Enums, Domain Events, Exceptions
-├── Infrastructure/         # EF Core, Repositories, Firebase, R2 Service
-└── Web/                    # React + TypeScript Frontend
-tests/                      # Integration and repository tests
-docs/                       # Architecture and deployment notes
-```
-
-## Local Development Setup
-
-### Backend
-
-Update [src/appsettings.Development.json](src/appsettings.Development.json) with your PostgreSQL, Firebase, and R2 settings.
-
-Apply database migrations:
-
+**Backend**
 ```bash
-dotnet ef database update --project src/trading_journel_app.csproj
-```
-
-Run the API:
-
-```bash
-dotnet run --project src/trading_journel_app.csproj
-```
-
-### Frontend
-
-From [src/Web](src/Web):
-
-```bash
-npm install
-npm run dev
-```
-
-Set the frontend API base URL with `VITE_API_BASE_URL` if needed for your environment.
-
-## Deployment Flow
-
-### API on Fly.io
-
-1. Create the Fly app.
-2. Create Fly Postgres.
-3. Attach or manually configure the PostgreSQL connection string.
-4. Set Fly secrets for runtime configuration. The Docker image reads these from the Fly app environment at startup, so they do not need to be baked into the image.
-
-- `ConnectionStrings__TradingJournalDb`
-- `Firebase__ProjectId`
-- `Firebase__CredentialsJsonBase64`
-- `Cors__AllowedOrigins__0`
-- `Storage__S3__BucketName`
-- `Storage__S3__ServiceUrl`
-- `Storage__S3__AccessKeyId`
-- `Storage__S3__SecretAccessKey`
-- `Storage__S3__AuthenticationRegion`
-- `Storage__S3__ForcePathStyle`
-- `Storage__S3__PublicBaseUrl`
-- `Storage__S3__UploadUrlExpiryMinutes`
-- `Storage__S3__DownloadUrlExpiryMinutes`
-- `Storage__S3__KeyPrefix`
-
-5. Deploy with `fly deploy`.
-6. Fly runs the database migration as a `release_command` during deploy, using the new image before traffic is switched to the release.
-
-### Frontend on Vercel
-
-- Project root: [src/Web](src/Web)
-- Framework preset: `Vite`
-- Build command: `npm run build`
-- Output directory: `dist`
-- Required env var: `VITE_API_BASE_URL=https://your-fly-api.fly.dev`
-
-### Frontend on Cloudflare Pages
-
-You only need this if you choose Cloudflare Pages instead of Vercel.
-
-- Root directory: [src/Web](src/Web)
-- Build command: `npm run build`
-- Output directory: `dist`
-- Required env var: `VITE_API_BASE_URL=https://your-fly-api.fly.dev`
-- Cloudflare Pages already handles SPA fallback when there is no top-level `404.html`, so no custom `_redirects` file is needed.
-
-### GitHub Actions
-
-The included workflow in [.github/workflows/deploy.yml](.github/workflows/deploy.yml) expects these secrets:
-
-- `FLY_API_TOKEN`
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
-
-And this repository variable:
-
-- `VITE_API_BASE_URL`
-
-If you want to keep deployment values in GitHub for local workflow use, mirror only the frontend build URL there. The API secrets should stay in Fly secrets, not in the GitHub workflow environment.
-
-## Firebase and CORS Checklist
-
-For production, make sure you add your deployed frontend domain to:
-
-- Firebase Authentication authorized domains
-- backend CORS allowed origins
-
-For Firebase service account credentials, prefer passing the full JSON as a base64-encoded string via `Firebase__CredentialsJsonBase64` instead of mounting or writing a credentials file.
-
-Fly secret names used by the API container:
-
-- `ConnectionStrings__TradingJournalDb`
-- `Firebase__ProjectId`
-- `Firebase__CredentialsJsonBase64`
-- `Cors__AllowedOrigins__0`
-- `Storage__S3__BucketName`
-- `Storage__S3__ServiceUrl`
-- `Storage__S3__AccessKeyId`
-- `Storage__S3__SecretAccessKey`
-- `Storage__S3__AuthenticationRegion`
-- `Storage__S3__ForcePathStyle`
-- `Storage__S3__PublicBaseUrl`
-- `Storage__S3__UploadUrlExpiryMinutes`
-- `Storage__S3__DownloadUrlExpiryMinutes`
-- `Storage__S3__KeyPrefix`
-
-## Key Design Decisions
-
-- Optimistic concurrency: prevents silent data loss during concurrent edits
-- Auditability: every change is tracked for compliance and debugging
-- Image handling: images are stored in Cloudflare R2 with app-managed file references
-- Many-to-many relationships: strategies and tags use explicit relational mapping
-- Rich journaling: Tiptap editor supports image upload and persisted file references
-
-## Deployment Overview
-
-- API: Fly.io
-- Database: Fly Postgres
-- Frontend: Vercel
-- Optional frontend alternative: Cloudflare Pages
-- Object storage: Cloudflare R2
-
-Deployment files included in this repo:
-
-- [Dockerfile](Dockerfile)
-- [fly.toml](fly.toml)
-- [.github/workflows/deploy.yml](.github/workflows/deploy.yml)
-- [src/Web/vercel.json](src/Web/vercel.json)
-
-
-For the full step-by-step deployment guide, see [docs/deployment.md](docs/deployment.md).
+dotnet ef database update
+dotnet run --project src/trading_journel_app
