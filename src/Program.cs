@@ -1,7 +1,9 @@
+using Microsoft.EntityFrameworkCore;
 using FluentValidation.AspNetCore;
 using trading_journel_app.Application.DependencyInjection;
 using trading_journel_app.Infrastructure.Authentication;
 using trading_journel_app.Infrastructure.DependencyInjection;
+using trading_journel_app.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 const string frontendCorsPolicy = "FrontendCorsPolicy";
@@ -30,6 +32,14 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
+
+if (args.Contains("--migrate", StringComparer.OrdinalIgnoreCase))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<TradingJournalDbContext>();
+    await dbContext.Database.MigrateAsync();
+    return;
+}
 
 if (app.Environment.IsDevelopment())
 {

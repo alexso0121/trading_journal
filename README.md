@@ -142,7 +142,7 @@ Set the frontend API base URL with `VITE_API_BASE_URL` if needed for your enviro
 - `Storage__S3__KeyPrefix`
 
 5. Deploy with `fly deploy`.
-6. Run EF Core migrations against the Fly Postgres database.
+6. Fly runs the database migration as a `release_command` during deploy, using the new image before traffic is switched to the release.
 
 ### Frontend on Vercel
 

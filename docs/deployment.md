@@ -61,16 +61,20 @@ fly deploy
 
 ### 6. Run migrations on Fly
 
-You should run the EF Core migrations against the Fly Postgres database after the first deploy.
+Fly is configured to run migrations as a `release_command` during deploy:
 
-One straightforward approach is:
-
-```bash
-fly ssh console -a trading-journel-app-api
-./trading_journel_app --help
+```toml
+[deploy]
+  release_command = "dotnet trading_journel_app.dll --migrate"
 ```
 
-If you prefer, add a dedicated migration command later. Right now migrations are not auto-run in the container.
+That means the migration runs from the new image before Fly promotes the release to live traffic.
+
+For manual troubleshooting, you can still run the same command yourself:
+
+```bash
+fly ssh console -a trading-journel-app-api --command "dotnet trading_journel_app.dll --migrate"
+```
 
 ## Vercel frontend setup
 
