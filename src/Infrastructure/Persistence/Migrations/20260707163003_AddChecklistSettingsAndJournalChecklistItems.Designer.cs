@@ -2,18 +2,21 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using trading_journel_app.Infrastructure.Persistence;
 
 #nullable disable
 
-namespace trading_journel_app.src.Infrastructure.Persistence.Migrations
+namespace trading_journel_app.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(TradingJournalDbContext))]
-    partial class TradingJournalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260707163003_AddChecklistSettingsAndJournalChecklistItems")]
+    partial class AddChecklistSettingsAndJournalChecklistItems
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -116,9 +119,6 @@ namespace trading_journel_app.src.Infrastructure.Persistence.Migrations
                         .HasColumnName("user_id");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("UserId", "JournalDateUtc")
-                        .IsUnique();
 
                     b.ToTable("daily_journals", (string)null);
                 });

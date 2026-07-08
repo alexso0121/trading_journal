@@ -1,15 +1,16 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
-import { AppShell } from '../components/AppShell'
-import { ProtectedRoute } from '../components/ProtectedRoute'
-import { AuditTrailPage } from '../pages/AuditTrailPage'
-import { LoginPage } from '../pages/LoginPage'
-import { StrategiesPage } from '../pages/StrategiesPage'
-import { TradeCalendarPage } from '../pages/TradeCalendarPage'
-import { TradesPage } from '../pages/TradesPage'
-import { useAuth } from '../providers/AuthProvider'
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { AppShell } from '../components/AppShell';
+import { ProtectedRoute } from '../components/ProtectedRoute';
+import { AuditTrailPage } from '../pages/AuditTrailPage';
+import { LoginPage } from '../pages/LoginPage';
+import { SettingsPage } from '../pages/SettingsPage';
+import { StrategiesPage } from '../pages/StrategiesPage';
+import { TradeCalendarPage } from '../pages/TradeCalendarPage';
+import { TradesPage } from '../pages/TradesPage';
+import { useAuth } from '../providers/AuthProvider';
 
 export const AppRouter = () => {
-  const { user } = useAuth()
+  const { user } = useAuth();
 
   return (
     <Routes>
@@ -26,9 +27,10 @@ export const AppRouter = () => {
         <Route path="/strategies" element={<StrategiesPage />} />
         <Route path="/trades" element={<TradesPage />} />
         <Route path="/audit-trail" element={<AuditTrailPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to={user ? '/calendar' : '/login'} replace />} />
     </Routes>
-  )
-}
+  );
+};

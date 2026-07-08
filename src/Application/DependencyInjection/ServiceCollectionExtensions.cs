@@ -1,4 +1,5 @@
 using FluentValidation;
+using trading_journel_app.Application.Features.ChecklistSettings;
 using trading_journel_app.Application.Features.DailyJournals;
 using trading_journel_app.Application.Features.DailyJournals.CreateDailyJournal;
 using trading_journel_app.Application.Features.DailyJournals.Files;
@@ -23,6 +24,10 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        services.AddScoped<GetChecklistConfigItemsUseCase>();
+        services.AddScoped<CreateChecklistConfigItemUseCase>();
+        services.AddScoped<DeleteChecklistConfigItemUseCase>();
+        services.AddScoped<ReorderChecklistConfigItemsUseCase>();
         services.AddScoped<CreateTradeUseCase>();
         services.AddScoped<GetTradesUseCase>();
         services.AddScoped<GetTradeByIdUseCase>();
@@ -35,6 +40,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<FinalizeDailyJournalFilesUseCase>();
         services.AddScoped<FinalizeDailyJournalScreenshotsUseCase>();
         services.AddScoped<GetDailyJournalsUseCase>();
+        services.AddScoped<GetDailyJournalDetailUseCase>();
         services.AddScoped<GetDailyJournalByIdUseCase>();
         services.AddScoped<UpdateDailyJournalUseCase>();
         services.AddScoped<DeleteDailyJournalUseCase>();

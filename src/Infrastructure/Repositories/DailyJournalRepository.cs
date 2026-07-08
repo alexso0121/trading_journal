@@ -14,12 +14,21 @@ public sealed class DailyJournalRepository(TradingJournalDbContext dbContext) : 
 
     public Task<DailyJournal?> GetByIdAsync(Guid journalId, CancellationToken cancellationToken) =>
         dbContext.DailyJournals
+            .Include(j => j.ChecklistItems)
             .FirstOrDefaultAsync(j => j.Id == journalId, cancellationToken);
+
+    public Task<DailyJournal?> GetByUserIdAndDateAsync(Guid userId, DateTime journalDateUtc, CancellationToken cancellationToken) =>
+        dbContext.DailyJournals
+            .Include(j => j.ChecklistItems)
+            .FirstOrDefaultAsync(
+                j => j.UserId == userId && j.JournalDateUtc == journalDateUtc.Date,
+                cancellationToken);
 
     public async Task<IReadOnlyCollection<DailyJournal>> GetAllByUserIdAsync(Guid userId, CancellationToken cancellationToken)
     {
         var journals = await dbContext.DailyJournals
             .Where(j => j.UserId == userId)
+            .Include(j => j.ChecklistItems)
             .AsNoTracking()
             .OrderByDescending(j => j.JournalDateUtc)
             .ToListAsync(cancellationToken);

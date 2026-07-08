@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Diagnostics;
 using FluentValidation.AspNetCore;
 using trading_journel_app.Application.DependencyInjection;
 using trading_journel_app.Infrastructure.Authentication;
@@ -46,6 +47,29 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("GlobalExceptionHandler");
+        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+
+        if (exception is not null)
+        {
+            logger.LogError(exception, "Unhandled exception while processing {Method} {Path}", context.Request.Method, context.Request.Path);
+        }
+
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/json";
+
+        await context.Response.WriteAsJsonAsync(new
+        {
+            message = "Internal server error.",
+        });
+    });
+});
 
 app.UseHttpsRedirection();
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));

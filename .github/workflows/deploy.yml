@@ -7,9 +7,30 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    name: Run Tests (Testcontainers)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore tests/tests.csproj
+
+      - name: Run tests
+        run: dotnet test tests/tests.csproj --configuration Release --verbosity normal
+        env:
+          DOCKER_API_VERSION: "1.41"
+
   deploy-api:
     name: Deploy API to Fly.io
     runs-on: ubuntu-latest
+    needs: test
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -52,6 +52,54 @@ export type DailyJournal = {
   tradeIdea: string;
   reflection: string;
   note: string;
+  checklistItems: DailyJournalChecklistItem[];
+  createdAtUtc: string;
+  updatedAtUtc: string;
+};
+
+export type DailyJournalTradeSummary = {
+  symbol: string;
+  pnl: number;
+};
+
+export type DailyJournalListItem = {
+  id: string;
+  journalDateUtc: string;
+  trades: DailyJournalTradeSummary[];
+  createdAtUtc: string;
+  updatedAtUtc: string;
+};
+
+export type DailyJournalDetail = {
+  id: string;
+  userId: string;
+  journalDateUtc: string;
+  tradeIdea: string;
+  reflection: string;
+  note: string;
+  checklistItems: DailyJournalChecklistItem[];
+  trades: DailyJournalTradeSummary[];
+  createdAtUtc: string;
+  updatedAtUtc: string;
+};
+
+export type DailyJournalChecklistItem = {
+  id: string;
+  dailyJournalId: string;
+  configItemId: string | null;
+  label: string;
+  sequence: number;
+  isChecked: boolean;
+  checkedAtUtc: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+};
+
+export type ChecklistConfigItem = {
+  id: string;
+  userId: string;
+  label: string;
+  sequence: number;
   createdAtUtc: string;
   updatedAtUtc: string;
 };
@@ -136,12 +184,29 @@ export type CreateDailyJournalPayload = {
   journalDateUtc: string;
   tradeIdea: string;
   reflection: string;
+  checklistItems: DailyJournalChecklistItemInput[];
 };
 
 export type UpdateDailyJournalPayload = {
   journalDateUtc: string;
   tradeIdea: string;
   reflection: string;
+  checklistItems: DailyJournalChecklistItemInput[];
+};
+
+export type DailyJournalChecklistItemInput = {
+  configItemId?: string | null;
+  label: string;
+  sequence: number;
+  isChecked: boolean;
+};
+
+export type CreateChecklistConfigItemPayload = {
+  label: string;
+};
+
+export type ReorderChecklistConfigItemsPayload = {
+  itemIds: string[];
 };
 
 export type CreateJournalScreenshotUploadUrlPayload = {

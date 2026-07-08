@@ -43,6 +43,27 @@ public sealed class DailyJournalsController : ControllerBase
         return Ok(journals);
     }
 
+    [HttpGet("detail")]
+    public async Task<IActionResult> GetDailyJournalDetail(
+        [FromQuery] Guid? id,
+        [FromQuery] DateTime? dateUtc,
+        [FromServices] GetDailyJournalDetailUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        if (!User.TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized("Firebase token must include a GUID user id claim.");
+        }
+
+        if (!id.HasValue && !dateUtc.HasValue)
+        {
+            return BadRequest("Either id or dateUtc must be provided.");
+        }
+
+        var journal = await useCase.ExecuteAsync(userId, id, dateUtc, cancellationToken);
+        return Ok(journal);
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetDailyJournalById(
         Guid id,

@@ -19,7 +19,7 @@ import {
   resolveStoredFileContent,
 } from '../lib/storedFileContent';
 import { useAuth } from '../providers/AuthProvider';
-import type { DailyJournal, Strategy, Trade } from '../types/models';
+import type { ChecklistConfigItem, DailyJournalDetail, Strategy, Trade } from '../types/models';
 
 const locales = {
   'en-US': enUS,
@@ -39,6 +39,13 @@ type CalendarTradeEvent = {
   end: Date;
   allDay: false;
   resource: Trade;
+};
+
+type JournalChecklistItemState = {
+  configItemId: string | null;
+  label: string;
+  sequence: number;
+  isChecked: boolean;
 };
 
 const toDayKey = (date: Date) => {
@@ -93,10 +100,11 @@ export const TradeCalendarPage = () => {
 
   const [calendarTrades, setCalendarTrades] = useState<Trade[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
-  const [journals, setJournals] = useState<DailyJournal[]>([]);
+  const [selectedJournal, setSelectedJournal] = useState<DailyJournalDetail | null>(null);
+  const [checklistConfig, setChecklistConfig] = useState<ChecklistConfigItem[]>([]);
   const [loadingCalendarTrades, setLoadingCalendarTrades] = useState(false);
   const [loadingTrades, setLoadingTrades] = useState(false);
-  const [loadingJournals, setLoadingJournals] = useState(false);
+  const [loadingJournal, setLoadingJournal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -112,6 +120,9 @@ export const TradeCalendarPage = () => {
   }));
   const [journalTradeIdea, setJournalTradeIdea] = useState('');
   const [journalReflection, setJournalReflection] = useState('');
+  const [journalChecklistItems, setJournalChecklistItems] = useState<JournalChecklistItemState[]>(
+    []
+  );
   const [saving, setSaving] = useState(false);
   const suppressNextSlotSelectionRef = useRef(false);
   const [pendingJournalFileIds, setPendingJournalFileIds] = useState<string[]>([]);
@@ -143,16 +154,16 @@ export const TradeCalendarPage = () => {
     }
   };
 
-  const loadJournals = async () => {
-    setLoadingJournals(true);
+  const loadJournalByDate = async (date: Date) => {
+    setLoadingJournal(true);
     setError(null);
     try {
-      const journalData = await api.getDailyJournals();
-      setJournals(journalData);
+      const journal = await api.getDailyJournalDetail({ dateUtc: toDayKey(date) });
+      setSelectedJournal(journal);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load journals.');
+      setError(e instanceof Error ? e.message : 'Failed to load journal for selected day.');
     } finally {
-      setLoadingJournals(false);
+      setLoadingJournal(false);
     }
   };
 
@@ -168,6 +179,15 @@ export const TradeCalendarPage = () => {
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load strategies.');
+    }
+  };
+
+  const loadChecklistConfig = async () => {
+    try {
+      const checklistItems = await api.getChecklistSettings();
+      setChecklistConfig(checklistItems.sort((a, b) => a.sequence - b.sequence));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load checklist settings.');
     }
   };
 
@@ -190,9 +210,10 @@ export const TradeCalendarPage = () => {
 
   useEffect(() => {
     void loadCalendarTrades(calendarRange.start, calendarRange.end);
-    void loadJournals();
     void loadTradesByDate(selectedDate);
+    void loadJournalByDate(selectedDate);
     void loadStrategies();
+    void loadChecklistConfig();
   }, []);
 
   const events = useMemo<CalendarTradeEvent[]>(
@@ -212,24 +233,33 @@ export const TradeCalendarPage = () => {
   );
 
   const selectedDayKey = toDayKey(selectedDate);
-  const selectedJournalDatePart = toJournalIso(selectedDate).slice(0, 10);
-
-  const existingJournal = useMemo(() => {
-    if (!selectedJournalDatePart) {
-      return null;
-    }
-    return (
-      journals.find((journal) => journal.journalDateUtc.slice(0, 10) === selectedJournalDatePart) ??
-      null
-    );
-  }, [journals, selectedJournalDatePart]);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadJournalContent = async () => {
-      const nextTradeIdea = existingJournal?.tradeIdea ?? existingJournal?.note ?? '';
-      const nextReflection = existingJournal?.reflection ?? '';
+      const nextTradeIdea = selectedJournal?.tradeIdea ?? selectedJournal?.note ?? '';
+      const nextReflection = selectedJournal?.reflection ?? '';
+
+      const nextChecklistItems = selectedJournal?.checklistItems?.length
+        ? selectedJournal.checklistItems
+            .slice()
+            .sort((a, b) => a.sequence - b.sequence)
+            .map((item) => ({
+              configItemId: item.configItemId,
+              label: item.label,
+              sequence: item.sequence,
+              isChecked: item.isChecked,
+            }))
+        : checklistConfig
+            .slice()
+            .sort((a, b) => a.sequence - b.sequence)
+            .map((item) => ({
+              configItemId: item.id,
+              label: item.label,
+              sequence: item.sequence,
+              isChecked: false,
+            }));
       const fileIds = [
         ...new Set([
           ...extractStoredFileIds(nextTradeIdea),
@@ -241,6 +271,7 @@ export const TradeCalendarPage = () => {
         if (!cancelled) {
           setJournalTradeIdea(nextTradeIdea);
           setJournalReflection(nextReflection);
+          setJournalChecklistItems(nextChecklistItems);
         }
         return;
       }
@@ -254,11 +285,13 @@ export const TradeCalendarPage = () => {
         if (!cancelled) {
           setJournalTradeIdea(resolveStoredFileContent(nextTradeIdea, resolvedUrls));
           setJournalReflection(resolveStoredFileContent(nextReflection, resolvedUrls));
+          setJournalChecklistItems(nextChecklistItems);
         }
       } catch {
         if (!cancelled) {
           setJournalTradeIdea(nextTradeIdea);
           setJournalReflection(nextReflection);
+          setJournalChecklistItems(nextChecklistItems);
         }
       }
     };
@@ -269,11 +302,12 @@ export const TradeCalendarPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [api, existingJournal]);
+  }, [api, checklistConfig, selectedJournal]);
 
   const openDayDialog = (date: Date) => {
     setSelectedDate(date);
     void loadTradesByDate(date);
+    void loadJournalByDate(date);
     setDialogOpen(true);
   };
 
@@ -335,8 +369,12 @@ export const TradeCalendarPage = () => {
   };
 
   const saveJournal = async () => {
-    if (!hasRichTextContent(journalTradeIdea) && !hasRichTextContent(journalReflection)) {
-      setError('TradeIdea or Reflection is required.');
+    if (
+      !hasRichTextContent(journalTradeIdea) &&
+      !hasRichTextContent(journalReflection) &&
+      journalChecklistItems.length === 0
+    ) {
+      setError('TradeIdea, Reflection, or Checklist is required.');
       return;
     }
 
@@ -347,10 +385,19 @@ export const TradeCalendarPage = () => {
         journalDateUtc: toJournalIso(selectedDate),
         tradeIdea: normalizeStoredFileContentForSave(journalTradeIdea),
         reflection: normalizeStoredFileContentForSave(journalReflection),
+        checklistItems: journalChecklistItems
+          .slice()
+          .sort((a, b) => a.sequence - b.sequence)
+          .map((item) => ({
+            configItemId: item.configItemId,
+            label: item.label,
+            sequence: item.sequence,
+            isChecked: item.isChecked,
+          })),
       };
 
-      const journal = existingJournal
-        ? await api.updateDailyJournal(existingJournal.id, basePayload)
+      const journal = selectedJournal
+        ? await api.updateDailyJournal(selectedJournal.id, basePayload)
         : await api.createDailyJournal(basePayload);
 
       if (pendingJournalFileIds.length > 0) {
@@ -360,16 +407,10 @@ export const TradeCalendarPage = () => {
       }
       setPendingJournalFileIds([]);
 
-      setJournals((prev) => {
-        const index = prev.findIndex((item) => item.id === journal.id);
-        if (index >= 0) {
-          var next = [...prev];
-          next[index] = journal;
-          return next;
-        }
-
-        return [journal, ...prev];
-      });
+      setSelectedJournal((previous) => ({
+        ...journal,
+        trades: previous?.trades ?? [],
+      }));
 
       setDialogOpen(false);
     } catch (e) {
@@ -397,7 +438,7 @@ export const TradeCalendarPage = () => {
     return { src: uploadInfo.downloadUrl, fileId: uploadInfo.fileId };
   };
 
-  const loading = loadingCalendarTrades || loadingJournals || loadingTrades;
+  const loading = loadingCalendarTrades || loadingJournal || loadingTrades;
 
   return (
     <section className="space-y-4">
@@ -410,8 +451,9 @@ export const TradeCalendarPage = () => {
             size="xs"
             onClick={() => {
               void loadCalendarTrades(calendarRange.start, calendarRange.end);
-              void loadJournals();
               void loadTradesByDate(selectedDate);
+              void loadJournalByDate(selectedDate);
+              void loadChecklistConfig();
             }}
           >
             Refresh
@@ -541,6 +583,43 @@ export const TradeCalendarPage = () => {
           </div>
 
           <div>
+            <h4 className="mb-2 font-medium">Checklist</h4>
+            <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
+              {journalChecklistItems.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  No checklist items configured. Add them in Settings.
+                </p>
+              ) : (
+                journalChecklistItems
+                  .slice()
+                  .sort((a, b) => a.sequence - b.sequence)
+                  .map((item, index) => (
+                    <label
+                      key={`${item.configItemId ?? 'snapshot'}-${item.sequence}-${index}`}
+                      className="flex items-center gap-2 text-sm text-slate-700"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={item.isChecked}
+                        onChange={(event) => {
+                          const checked = event.target.checked;
+                          setJournalChecklistItems((previous) =>
+                            previous.map((candidate) =>
+                              candidate.sequence === item.sequence && candidate.label === item.label
+                                ? { ...candidate, isChecked: checked }
+                                : candidate
+                            )
+                          );
+                        }}
+                      />
+                      <span>{item.label}</span>
+                    </label>
+                  ))
+              )}
+            </div>
+          </div>
+
+          <div>
             <h4 className="mb-2 font-medium">Trade idea</h4>
             <StrategyRichTextEditor
               value={journalTradeIdea}
@@ -568,7 +647,7 @@ export const TradeCalendarPage = () => {
               void saveJournal();
             }}
           >
-            {existingJournal ? 'Update journal' : 'Save journal'}
+            {selectedJournal ? 'Update journal' : 'Save journal'}
           </button>
         </div>
       </Dialog>

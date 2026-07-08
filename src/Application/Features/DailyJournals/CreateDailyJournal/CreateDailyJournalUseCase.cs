@@ -7,7 +7,24 @@ public sealed class CreateDailyJournalUseCase(IDailyJournalRepository dailyJourn
 {
     public async Task<DailyJournalResponse> ExecuteAsync(Guid userId, CreateDailyJournalRequest request, CancellationToken cancellationToken)
     {
-        var dailyJournal = DailyJournal.Create(userId, request.JournalDateUtc, request.TradeIdea, request.Reflection);
+        var dailyJournal = DailyJournal.Create(
+            userId,
+            request.JournalDateUtc,
+            request.TradeIdea,
+            request.Reflection,
+            request.ChecklistItems.Count > 0);
+
+        var checklistItems = request.ChecklistItems
+            .OrderBy(i => i.Sequence)
+            .Select(item => DailyJournalChecklistItem.Create(
+                dailyJournal.Id,
+                item.ConfigItemId,
+                item.Label,
+                item.Sequence,
+                item.IsChecked))
+            .ToList();
+        dailyJournal.ReplaceChecklistItems(checklistItems);
+
         await dailyJournalRepository.AddAsync(dailyJournal, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return DailyJournalResponse.FromEntity(dailyJournal);

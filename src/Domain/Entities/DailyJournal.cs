@@ -26,25 +26,37 @@ public sealed class DailyJournal
     public string Note { get; private set; } = string.Empty;
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
+    public ICollection<DailyJournalChecklistItem> ChecklistItems { get; } = new List<DailyJournalChecklistItem>();
 
-    public static DailyJournal Create(Guid userId, DateTime journalDateUtc, string tradeIdea, string reflection)
+    public static DailyJournal Create(Guid userId, DateTime journalDateUtc, string tradeIdea, string reflection, bool hasChecklistItems = false)
     {
         if (userId == Guid.Empty) throw new ArgumentException("UserId is required.", nameof(userId));
-        if (string.IsNullOrWhiteSpace(tradeIdea) && string.IsNullOrWhiteSpace(reflection))
-            throw new ArgumentException("TradeIdea or Reflection is required.");
+        if (string.IsNullOrWhiteSpace(tradeIdea) && string.IsNullOrWhiteSpace(reflection) && !hasChecklistItems)
+            throw new ArgumentException("TradeIdea, Reflection, or Checklist is required.");
 
         return new DailyJournal(userId, journalDateUtc, tradeIdea, reflection);
     }
 
-    public void Update(DateTime journalDateUtc, string tradeIdea, string reflection)
+    public void Update(DateTime journalDateUtc, string tradeIdea, string reflection, bool hasChecklistItems = false)
     {
-        if (string.IsNullOrWhiteSpace(tradeIdea) && string.IsNullOrWhiteSpace(reflection))
-            throw new ArgumentException("TradeIdea or Reflection is required.");
+        if (string.IsNullOrWhiteSpace(tradeIdea) && string.IsNullOrWhiteSpace(reflection) && !hasChecklistItems)
+            throw new ArgumentException("TradeIdea, Reflection, or Checklist is required.");
 
         JournalDateUtc = journalDateUtc.Date;
         TradeIdea = tradeIdea.Trim();
         Reflection = reflection.Trim();
         Note = BuildLegacyNote(TradeIdea, Reflection);
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public void ReplaceChecklistItems(IReadOnlyCollection<DailyJournalChecklistItem> checklistItems)
+    {
+        ChecklistItems.Clear();
+        foreach (var checklistItem in checklistItems.OrderBy(i => i.Sequence))
+        {
+            ChecklistItems.Add(checklistItem);
+        }
+
         UpdatedAtUtc = DateTime.UtcNow;
     }
 

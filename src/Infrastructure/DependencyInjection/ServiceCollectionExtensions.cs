@@ -28,6 +28,7 @@ public static class ServiceCollectionExtensions
             options.UseNpgsql(connectionString)
                 .AddInterceptors(provider.GetRequiredService<AuditLogInterceptor>()));
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<TradingJournalDbContext>());
+        services.AddScoped<IChecklistConfigRepository, ChecklistConfigRepository>();
         services.AddScoped<IDailyJournalRepository, DailyJournalRepository>();
         services.AddScoped<IStoredFileRepository, StoredFileRepository>();
         services.AddScoped<IStrategyRepository, StrategyRepository>();

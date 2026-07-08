@@ -1,12 +1,16 @@
 import axios, { type AxiosError } from 'axios';
 import type {
   AuditLog,
+  ChecklistConfigItem,
+  CreateChecklistConfigItemPayload,
   CreateJournalScreenshotUploadUrlPayload,
   CreateStoredFileTempUploadUrlResponse,
   CreateDailyJournalPayload,
   CreateStrategyPayload,
   CreateTradePayload,
   DailyJournal,
+  DailyJournalDetail,
+  DailyJournalListItem,
   FinalizeStoredFilesPayload,
   FinalizeStoredFilesResponse,
   GetAuditLogsParams,
@@ -15,6 +19,7 @@ import type {
   PagedResponse,
   ResolveStoredFilesPayload,
   ResolveStoredFilesResponse,
+  ReorderChecklistConfigItemsPayload,
   Strategy,
   Trade,
   UpdateDailyJournalPayload,
@@ -174,10 +179,32 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
     }
   },
 
-  async getDailyJournals(): Promise<DailyJournal[]> {
+  async getDailyJournals(): Promise<DailyJournalListItem[]> {
     try {
-      const response = await api.get<DailyJournal[]>('/api/dailyjournals', {
+      const response = await api.get<DailyJournalListItem[]>('/api/dailyjournals', {
         headers: await authHeader(resolveToken),
+      });
+      return response.data;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+
+  async getDailyJournalDetail(params: {
+    id?: string;
+    dateUtc?: string;
+  }): Promise<DailyJournalDetail | null> {
+    if (!params.id && !params.dateUtc) {
+      throw new ApiError('Either id or dateUtc must be provided.', 400);
+    }
+
+    try {
+      const response = await api.get<DailyJournalDetail | null>('/api/dailyjournals/detail', {
+        headers: await authHeader(resolveToken),
+        params: {
+          id: params.id,
+          dateUtc: params.dateUtc,
+        },
       });
       return response.data;
     } catch (error) {
@@ -315,6 +342,50 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
         },
       });
       return toPagedResponse<AuditLog>(response.data);
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+
+  async getChecklistSettings(): Promise<ChecklistConfigItem[]> {
+    try {
+      const response = await api.get<ChecklistConfigItem[]>('/api/checklistsettings', {
+        headers: await authHeader(resolveToken),
+      });
+      return response.data;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+
+  async createChecklistSetting(
+    payload: CreateChecklistConfigItemPayload
+  ): Promise<ChecklistConfigItem> {
+    try {
+      const response = await api.post<ChecklistConfigItem>('/api/checklistsettings', payload, {
+        headers: await authHeader(resolveToken),
+      });
+      return response.data;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+
+  async deleteChecklistSetting(itemId: string): Promise<void> {
+    try {
+      await api.delete(`/api/checklistsettings/${itemId}`, {
+        headers: await authHeader(resolveToken),
+      });
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+
+  async reorderChecklistSettings(payload: ReorderChecklistConfigItemsPayload): Promise<void> {
+    try {
+      await api.put('/api/checklistsettings/reorder', payload, {
+        headers: await authHeader(resolveToken),
+      });
     } catch (error) {
       throw toApiError(error);
     }

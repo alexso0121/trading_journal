@@ -23,6 +23,44 @@ public sealed class TradeRepository(TradingJournalDbContext dbContext) : ITradeR
 
     public void Delete(Trade trade) => dbContext.Trades.Remove(trade);
 
+    public async Task<IReadOnlyCollection<Trade>> GetByUserIdAndDateAsync(
+        Guid userId,
+        DateTime tradingDateUtc,
+        CancellationToken cancellationToken)
+    {
+        var dayStartUtc = DateTime.SpecifyKind(tradingDateUtc.Date, DateTimeKind.Utc);
+        var dayEndUtc = dayStartUtc.AddDays(1);
+
+        var trades = await dbContext.Trades
+            .AsNoTracking()
+            .Where(t => t.UserId == userId && t.OpenTimeUtc >= dayStartUtc && t.OpenTimeUtc < dayEndUtc)
+            .OrderByDescending(t => t.OpenTimeUtc)
+            .ToListAsync(cancellationToken);
+
+        return trades;
+    }
+
+    public async Task<IReadOnlyCollection<Trade>> GetByUserIdWithinDateRangeAsync(
+        Guid userId,
+        DateTime startDateUtcInclusive,
+        DateTime endDateUtcExclusive,
+        CancellationToken cancellationToken)
+    {
+        var normalizedStartUtc = DateTime.SpecifyKind(startDateUtcInclusive.Date, DateTimeKind.Utc);
+        var normalizedEndUtc = DateTime.SpecifyKind(endDateUtcExclusive.Date, DateTimeKind.Utc);
+
+        var trades = await dbContext.Trades
+            .AsNoTracking()
+            .Where(t =>
+                t.UserId == userId &&
+                t.OpenTimeUtc >= normalizedStartUtc &&
+                t.OpenTimeUtc < normalizedEndUtc)
+            .OrderByDescending(t => t.OpenTimeUtc)
+            .ToListAsync(cancellationToken);
+
+        return trades;
+    }
+
     public async Task<IReadOnlyCollection<Trade>> GetAllByUserIdAsync(Guid userId, CancellationToken cancellationToken)
     {
         var trades = await dbContext.Trades
