@@ -124,6 +124,33 @@ Cloudflare Pages env var:
 VITE_API_BASE_URL=https://trading-journel-app-api.fly.dev
 ```
 
+## Cloudflare Worker frontend setup (Wrangler)
+
+If you deploy to a Workers domain (for example `*.workers.dev`) using `wrangler deploy`, use the Wrangler config at `src/Web/wrangler.toml`.
+
+The config pins the Worker name and static asset directory:
+
+- `name = "trading-journal-app"`
+- `[assets].directory = "./dist"`
+- SPA route fallback with `not_found_handling = "single-page-application"`
+
+Deploy commands:
+
+```bash
+cd src/Web
+pnpm install
+pnpm build
+wrangler deploy
+```
+
+To disable Wrangler anonymous telemetry in CI/local shell:
+
+```bash
+WRANGLER_SEND_METRICS=false
+```
+
+If you see "A Worker named \"trading-journal-app\" already exists", it usually means deploy was executed without loading `wrangler.toml` from `src/Web`. Run the command in `src/Web` (or pass `--config src/Web/wrangler.toml`).
+
 ## Firebase configuration
 
 For either Vercel or Cloudflare Pages, make sure your Firebase project allows your frontend domain:

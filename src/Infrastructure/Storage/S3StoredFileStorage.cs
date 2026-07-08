@@ -156,7 +156,7 @@ public sealed class S3StoredFileStorage(
         string contentType,
         string tempStorageKey)
     {
-        var extension = Path.GetExtension(tempStorageKey);
+        var extension = System.IO.Path.GetExtension(tempStorageKey);
         if (string.IsNullOrWhiteSpace(extension))
         {
             extension = ResolveExtension(fileName, contentType);
@@ -174,7 +174,7 @@ public sealed class S3StoredFileStorage(
 
     private static string ResolveExtension(string fileName, string contentType)
     {
-        var extension = Path.GetExtension(fileName)?.Trim().ToLowerInvariant();
+        var extension = System.IO.Path.GetExtension(fileName)?.Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(extension))
         {
             extension = contentType switch

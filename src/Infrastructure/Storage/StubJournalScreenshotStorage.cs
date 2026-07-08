@@ -171,7 +171,7 @@ public sealed class StubJournalScreenshotStorage(
 
     private string BuildFinalStorageKeyFromTemp(Guid userId, Guid dailyJournalId, string tempStorageKey)
     {
-        var extension = Path.GetExtension(tempStorageKey);
+        var extension = System.IO.Path.GetExtension(tempStorageKey);
         return BuildFinalStorageKey(userId, dailyJournalId, extension);
     }
 
@@ -186,7 +186,7 @@ public sealed class StubJournalScreenshotStorage(
 
     private static string ResolveExtension(string fileName, string contentType)
     {
-        var extension = Path.GetExtension(fileName)?.Trim().ToLowerInvariant();
+        var extension = System.IO.Path.GetExtension(fileName)?.Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(extension))
         {
             extension = contentType switch

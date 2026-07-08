@@ -248,3 +248,21 @@ export type ResolvedStoredFileItem = {
 export type ResolveStoredFilesResponse = {
   items: ResolvedStoredFileItem[];
 };
+
+export type TradeAnalyticsSymbolSummary = {
+  symbol: string;
+  tradeCount: number;
+  netPnl: number;
+};
+
+export type TradeAnalyticsSummary = {
+  totalTrades: number;
+  winningTrades: number;
+  losingTrades: number;
+  netPnl: number;
+  averagePnl: number;
+  bestTradePnl: number;
+  worstTradePnl: number;
+  winRatePercent: number;
+  topSymbols: TradeAnalyticsSymbolSummary[];
+};

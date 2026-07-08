@@ -7,6 +7,7 @@ import { SettingsPage } from '../pages/SettingsPage';
 import { StrategiesPage } from '../pages/StrategiesPage';
 import { TradeCalendarPage } from '../pages/TradeCalendarPage';
 import { TradesPage } from '../pages/TradesPage';
+import { AnalyticsPage } from '../pages/AnalyticsPage';
 import { useAuth } from '../providers/AuthProvider';
 
 export const AppRouter = () => {
@@ -24,6 +25,7 @@ export const AppRouter = () => {
         }
       >
         <Route path="/calendar" element={<TradeCalendarPage />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/strategies" element={<StrategiesPage />} />
         <Route path="/trades" element={<TradesPage />} />
         <Route path="/audit-trail" element={<AuditTrailPage />} />

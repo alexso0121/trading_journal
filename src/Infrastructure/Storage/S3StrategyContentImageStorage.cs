@@ -75,7 +75,7 @@ public sealed class S3StrategyContentImageStorage(
 
     private string BuildStorageKey(StrategyContentImageUploadRequest request)
     {
-        var extension = Path.GetExtension(request.FileName)?.Trim().ToLowerInvariant();
+        var extension = System.IO.Path.GetExtension(request.FileName)?.Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(extension))
         {
             extension = request.ContentType switch

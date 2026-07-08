@@ -148,3 +148,119 @@ The deploy workflow now runs automated tests before deployment.
 - Test job runs `dotnet test tests/tests.csproj` on `ubuntu-latest`
 - Integration tests use Testcontainers with PostgreSQL and require Docker support on the runner
 - Deploy job (`flyctl deploy`) runs only after the test job succeeds
+
+## GraphQL Analytics
+
+The first GraphQL slice is intentionally small and read-only.
+
+- Endpoint: `/graphql`
+- Query: `analyticsSummary`
+- Optional args: `startDateUtc`, `endDateUtc` (inclusive UTC date bounds)
+- Purpose: return a compact trade analytics snapshot for the authenticated user
+- Backed by existing trade data only
+- REST remains the primary API for CRUD and journal editing for now
+
+### Authentication
+
+GraphQL uses the same JWT bearer auth as REST.
+
+Required header:
+
+```http
+Authorization: Bearer <firebase-id-token>
+```
+
+If no valid token is sent, the request is rejected.
+
+### Query usage
+
+- Without date args: returns analytics from all available trades for the current user.
+- With date args: filters by trade open date using UTC date bounds.
+- Validation: `startDateUtc` must be earlier than or equal to `endDateUtc`.
+
+Example shape:
+
+```graphql
+query {
+	analyticsSummary {
+		totalTrades
+		winningTrades
+		losingTrades
+		netPnl
+		averagePnl
+		bestTradePnl
+		worstTradePnl
+		winRatePercent
+		topSymbols {
+			symbol
+			tradeCount
+			netPnl
+		}
+	}
+}
+```
+
+Date-range example:
+
+```graphql
+query {
+	analyticsSummary(startDateUtc: "2026-07-01T00:00:00Z", endDateUtc: "2026-07-31T00:00:00Z") {
+		totalTrades
+		netPnl
+		winRatePercent
+	}
+}
+```
+
+Variables example:
+
+```graphql
+query TradeAnalyticsSummary($startDateUtc: DateTime, $endDateUtc: DateTime) {
+	analyticsSummary(startDateUtc: $startDateUtc, endDateUtc: $endDateUtc) {
+		totalTrades
+		netPnl
+		winRatePercent
+	}
+}
+```
+
+```json
+{
+	"startDateUtc": "2026-07-01T00:00:00Z",
+	"endDateUtc": "2026-07-31T00:00:00Z"
+}
+```
+
+## Cloudflare Worker Deploy Notes
+
+If you deploy frontend assets using `wrangler deploy`, keep a Wrangler config in the frontend folder so Wrangler can safely update the same Worker.
+
+This repository includes `src/Web/wrangler.toml` with:
+
+- `name = "trading-journal-app"`
+- static assets served from `dist`
+- SPA fallback for client routes
+
+### Telemetry message
+
+Wrangler telemetry is informational. To disable anonymous telemetry in CI/local shell:
+
+```bash
+WRANGLER_SEND_METRICS=false
+```
+
+### Fix for "Worker already exists"
+
+If you see:
+
+`A Worker named "trading-journal-app" already exists ...`
+
+Use deploy from the frontend directory (where `wrangler.toml` is):
+
+```bash
+cd src/Web
+pnpm build
+wrangler deploy
+```
+
+With the config file present, Wrangler treats it as an update to the existing Worker instead of failing to confirm overwrite.

@@ -17,6 +17,7 @@ import type {
   GetStrategiesParams,
   GetTradesParams,
   PagedResponse,
+  TradeAnalyticsSummary,
   ResolveStoredFilesPayload,
   ResolveStoredFilesResponse,
   ReorderChecklistConfigItemsPayload,
@@ -77,6 +78,11 @@ type TokenResolver = () => Promise<string>;
 const authHeader = async (resolveToken: TokenResolver) => ({
   Authorization: `Bearer ${await resolveToken()}`,
 });
+
+type GraphQlResponse<T> = {
+  data?: T;
+  errors?: Array<{ message?: string }>;
+};
 
 export const createApiClient = (resolveToken: TokenResolver) => ({
   async getStrategies(params: GetStrategiesParams = {}): Promise<PagedResponse<Strategy>> {
@@ -387,6 +393,69 @@ export const createApiClient = (resolveToken: TokenResolver) => ({
         headers: await authHeader(resolveToken),
       });
     } catch (error) {
+      throw toApiError(error);
+    }
+  },
+
+  async getTradeAnalyticsSummary(params?: {
+    startDateUtc?: string;
+    endDateUtc?: string;
+  }): Promise<TradeAnalyticsSummary> {
+    try {
+      const response = await api.post<
+        GraphQlResponse<{
+          analyticsSummary: TradeAnalyticsSummary;
+        }>
+      >(
+        '/graphql',
+        {
+          query: `
+            query TradeAnalyticsSummary($startDateUtc: DateTime, $endDateUtc: DateTime) {
+              analyticsSummary(startDateUtc: $startDateUtc, endDateUtc: $endDateUtc) {
+                totalTrades
+                winningTrades
+                losingTrades
+                netPnl
+                averagePnl
+                bestTradePnl
+                worstTradePnl
+                winRatePercent
+                topSymbols {
+                  symbol
+                  tradeCount
+                  netPnl
+                }
+              }
+            }
+          `,
+          variables: {
+            startDateUtc: params?.startDateUtc
+              ? new Date(`${params.startDateUtc}T00:00:00.000Z`).toISOString()
+              : null,
+            endDateUtc: params?.endDateUtc
+              ? new Date(`${params.endDateUtc}T00:00:00.000Z`).toISOString()
+              : null,
+          },
+        },
+        {
+          headers: await authHeader(resolveToken),
+        }
+      );
+
+      if (response.data.errors?.length) {
+        throw new ApiError(response.data.errors[0]?.message ?? 'GraphQL request failed.', 500);
+      }
+
+      const summary = response.data.data?.analyticsSummary;
+      if (!summary) {
+        throw new ApiError('Analytics summary response was empty.', 500);
+      }
+
+      return summary;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
       throw toApiError(error);
     }
   },

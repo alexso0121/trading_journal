@@ -22,6 +22,14 @@ export const AppShell = () => {
                 Calendar
               </NavLink>
               <NavLink
+                to="/analytics"
+                className={({ isActive }) =>
+                  `rounded-full px-3 py-1.5 text-sm transition ${isActive ? 'bg-cyan-300 text-slate-950' : 'text-white/75 hover:bg-white/10 hover:text-white'}`
+                }
+              >
+                Analytics
+              </NavLink>
+              <NavLink
                 to="/strategies"
                 className={({ isActive }) =>
                   `rounded-full px-3 py-1.5 text-sm transition ${isActive ? 'bg-cyan-300 text-slate-950' : 'text-white/75 hover:bg-white/10 hover:text-white'}`

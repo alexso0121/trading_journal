@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Diagnostics;
 using FluentValidation.AspNetCore;
+using trading_journel_app.Api.GraphQL;
 using trading_journel_app.Application.DependencyInjection;
 using trading_journel_app.Infrastructure.Authentication;
 using trading_journel_app.Infrastructure.DependencyInjection;
@@ -17,6 +18,10 @@ builder.Services.AddControllers();
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHttpContextAccessor();
+builder.Services
+    .AddGraphQLServer()
+    .AddQueryType<AnalyticsQuery>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(frontendCorsPolicy, policy =>
@@ -76,6 +81,7 @@ app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
 app.UseCors(frontendCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapGraphQL("/graphql").RequireAuthorization();
 app.MapControllers();
 
 app.Run();

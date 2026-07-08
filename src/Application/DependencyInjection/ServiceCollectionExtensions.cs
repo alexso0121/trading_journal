@@ -1,5 +1,6 @@
 using FluentValidation;
 using trading_journel_app.Application.Features.ChecklistSettings;
+using trading_journel_app.Application.Features.Analytics;
 using trading_journel_app.Application.Features.DailyJournals;
 using trading_journel_app.Application.Features.DailyJournals.CreateDailyJournal;
 using trading_journel_app.Application.Features.DailyJournals.Files;
@@ -39,6 +40,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<CreateDailyJournalTempScreenshotUploadUrlUseCase>();
         services.AddScoped<FinalizeDailyJournalFilesUseCase>();
         services.AddScoped<FinalizeDailyJournalScreenshotsUseCase>();
+        services.AddScoped<GetTradeAnalyticsSummaryUseCase>();
         services.AddScoped<GetDailyJournalsUseCase>();
         services.AddScoped<GetDailyJournalDetailUseCase>();
         services.AddScoped<GetDailyJournalByIdUseCase>();
